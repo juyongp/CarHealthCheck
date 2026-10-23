@@ -1,0 +1,1443 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>차량 건강검진</title>
+<script>
+/* Follow the car's day/night mode (sent by the app), or the browser's when the page is opened on its own. */
+try { document.documentElement.dataset.theme = window.AndroidBridge && AndroidBridge.theme ? AndroidBridge.theme() : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+</script>
+<style>
+/* In-app layout: one logical canvas (2560 px wide, height follows the window) scaled to the app window.
+   Wide window + parked = 3D viewport and two-column inspection panel. Driving or a narrow split window = one summary card.
+   Colors follow the Pleos system look: white and black with square corners by day, neutral black by night. */
+:root{
+  color-scheme: light;
+  --scr-bg:#ffffff;
+  --bg-2:#ffffff;
+  --bg-3:#f4f4f4;
+  --stage-1:#2c2f33;
+  --stage-2:#17191c;
+  --line:#e4e4e4;
+  --line-2:#cbcbcb;
+  --fg:#111111;
+  --muted:#666666;
+  --faint:#949494;
+  --accent:#111111;
+  --on-accent:#ffffff;
+  --glass:rgba(255,255,255,.92);
+  --hover:rgba(0,0,0,.04);
+  --sel:rgba(0,0,0,.06);
+  --shadow:rgba(0,0,0,.16);
+  --ok:#0b9470;
+  --warn:#d16a00;
+  --alert:#d93a2f;
+  --body:"Noto Sans CJK KR","Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  --mono:"Roboto Mono","Noto Sans Mono",ui-monospace,monospace;
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --scr-bg:#0b0b0c;
+  --bg-2:#111112;
+  --bg-3:#1b1b1d;
+  --line:#262628;
+  --line-2:#3a3a3d;
+  --fg:#f2f2f2;
+  --muted:#a2a2a2;
+  --faint:#707072;
+  --accent:#f2f2f2;
+  --on-accent:#0b0b0c;
+  --glass:rgba(17,17,18,.86);
+  --hover:rgba(255,255,255,.05);
+  --sel:rgba(255,255,255,.1);
+  --shadow:rgba(0,0,0,.6);
+  --ok:#3fd0a6;
+  --warn:#ffa22e;
+  --alert:#ff574c;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--scr-bg);color:var(--fg)}
+body{word-break:keep-all;font-family:var(--body);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:4px solid var(--accent);outline-offset:4px}
+
+.screen{position:absolute;left:0;top:0;width:2560px;height:1248px;transform-origin:0 0;background:var(--scr-bg);font-size:30px;line-height:1.45;overflow:hidden}
+.apparea{position:absolute;inset:0;overflow:hidden}
+
+/* parked: 3D viewport + inspection panel */
+.park{position:absolute;inset:0;display:grid;grid-template-columns:1360px 1200px}
+.drive{display:none}
+.screen[data-view="card"] .park{display:none}
+.screen[data-view="card"] .drive{display:flex}
+
+/* the 3D stage stays dark in both themes: the x-ray glow needs a dark field */
+.viewport{color-scheme:dark;--scr-bg:#0c0d0e;--line:#26282b;--line-2:#3b3e42;--fg:#f2f2f2;--muted:#a3a6aa;--faint:#72767b;--accent:#f2f2f2;--on-accent:#0c0d0e;--glass:rgba(16,17,19,.8);--ok:#3fd0a6;--warn:#ffa22e;--alert:#ff574c;color:var(--fg)}
+.viewport{position:relative;overflow:hidden;background:radial-gradient(115% 85% at 50% 62%,var(--stage-1) 0%,var(--stage-2) 46%,var(--scr-bg) 82%)}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:36px 40px 32px}
+.hud-top,.hud-bottom{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+.hud-bottom{align-items:flex-end}
+.eyebrow{font-family:var(--mono);font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0}
+.hud h2{font-weight:500;font-size:52px;line-height:1.15;margin:4px 0 8px}
+.meta{font-size:24px;color:var(--muted);margin:0 0 10px}
+.meta b{font-family:var(--mono);font-weight:500;color:var(--fg)}
+.scanline{display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:24px;color:var(--accent)}
+.scanline i{width:12px;height:12px;border-radius:50%;background:currentColor}
+.scanline.done{color:var(--muted)}
+.scanline.done i{background:var(--warn)}
+.live{display:inline-flex;align-items:center;gap:10px;margin-top:14px;font-size:22px;color:var(--muted);border:1px solid var(--line-2);border-radius:0;padding:6px 16px;background:var(--glass)}
+.live i{width:10px;height:10px;border-radius:50%;background:var(--faint)}
+.live.on i{background:var(--ok)}
+.hud-ctrls{display:flex;flex-direction:column;align-items:flex-end;gap:16px}
+.modes{pointer-events:auto;display:flex;padding:6px;border:1px solid var(--line-2);border-radius:0;background:var(--glass)}
+.modes button{appearance:none;border:0;background:transparent;color:var(--muted);font-size:28px;font-weight:500;line-height:1;padding:22px 34px;border-radius:0;cursor:pointer}
+.modes button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.chipbtn{pointer-events:auto;appearance:none;border:1px solid var(--line-2);background:var(--glass);color:var(--fg);font-size:24px;line-height:1;padding:18px 26px;border-radius:0;cursor:pointer}
+.chipbtn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.legend{display:flex;gap:30px;font-size:24px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:12px}
+.sw{width:16px;height:16px;border-radius:50%;background:var(--c);flex-shrink:0}
+.hint{font-size:24px;color:var(--muted);background:var(--glass);border:1px solid var(--line);border-radius:0;padding:12px 24px;transition:opacity .5s}
+.hint.gone{opacity:0}
+.tag{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;--c:var(--alert)}
+.tag .pt{position:absolute;left:-12px;top:-12px;width:24px;height:24px;border-radius:50%;border:4px solid var(--c);background:var(--scr-bg)}
+.tag .stem{position:absolute;left:0;top:-92px;width:2px;height:80px;background:var(--c)}
+.tag .lbl{position:absolute;left:-2px;top:-92px;transform:translateY(-100%);white-space:nowrap;background:var(--glass);border:2px solid var(--c);border-radius:0;padding:12px 20px 14px}
+.tag.flip .lbl{left:auto;right:-2px}
+.tag .lbl b{display:block;font-size:28px;font-weight:600;line-height:1.3}
+.tag .lbl span{font-family:var(--mono);font-size:22px;color:var(--c)}
+.fallback{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);padding:80px;font-size:30px}
+
+.panel{display:grid;grid-template-columns:420px minmax(0,1fr);gap:36px;padding:36px 40px;background:var(--bg-2);border-left:1px solid var(--line);min-height:0}
+.col-l{display:flex;flex-direction:column;gap:24px;min-height:0}
+.score{display:flex;align-items:flex-end;gap:22px}
+.score-num{font-size:120px;font-weight:300;line-height:.84;font-variant-numeric:tabular-nums}
+.score-num small{font-family:var(--mono);font-size:30px;color:var(--faint);margin-left:6px}
+.verdict{font-size:32px;font-weight:600;margin:4px 0 0}
+.cells{display:grid;grid-template-columns:repeat(9,1fr);gap:6px}
+.cells i{height:14px;border-radius:0;background:var(--c)}
+.lseg{display:flex;padding:5px;border:1px solid var(--line-2);border-radius:0}
+.lseg button{flex:1;appearance:none;border:0;background:transparent;color:var(--muted);font-size:26px;font-weight:500;line-height:1;padding:18px 10px;border-radius:0;cursor:pointer}
+.lseg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.rows{display:flex;flex-direction:column;min-height:0;overflow-y:auto}
+.row{appearance:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:20px;width:100%;min-height:92px;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);padding:14px 12px;cursor:pointer;border-radius:0}
+.row[aria-current="true"]{background:var(--sel)}
+.row .nm{display:block;font-size:29px;font-weight:500;line-height:1.3}
+.row .sh{display:block;font-size:23px;color:var(--muted);line-height:1.3}
+.row .v{font-family:var(--mono);font-size:24px;color:var(--muted);white-space:nowrap}
+.empty{font-size:26px;color:var(--muted);padding:24px 12px;margin:0;border-top:1px solid var(--line)}
+
+.detail{display:flex;flex-direction:column;gap:26px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:0;padding:36px 40px;min-height:0;overflow-y:auto;--c:var(--alert)}
+.d-head{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.pill{display:inline-flex;align-items:center;font-size:24px;font-weight:600;color:var(--c);padding:6px 18px;border-radius:0;border:2px solid currentColor}
+.zone{font-size:24px;color:var(--faint);text-align:right}
+.detail h3{font-size:48px;font-weight:600;line-height:1.25;margin:0}
+.reading{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap}
+.reading .num{display:flex;align-items:baseline;gap:10px}
+.reading .val{font-family:var(--mono);font-size:96px;font-weight:500;line-height:.9;letter-spacing:-.02em}
+.reading .unit{font-family:var(--mono);font-size:34px;color:var(--muted)}
+.reading .cap{display:grid;font-size:24px;color:var(--muted);line-height:1.4;padding-bottom:4px}
+.reading .cap span:last-child{color:var(--faint)}
+.life{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}
+.bar{height:12px;border-radius:0;background:var(--line-2);overflow:hidden}
+.bar span{display:block;height:100%;border-radius:0;background:var(--c)}
+.life small{font-family:var(--mono);font-size:22px;color:var(--muted)}
+.spark{color:var(--c)}
+.spark svg{display:block;width:100%;height:auto}
+.sp-axis{stroke:var(--line-2);stroke-width:1}
+.sp-ref{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+.sp-lab{fill:var(--faint);font-family:var(--mono);font-size:10px}
+.facts{display:grid;gap:18px;margin:0}
+.facts div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:20px}
+.facts dt{font-size:24px;color:var(--faint);padding-top:2px}
+.facts dd{margin:0;font-size:28px;line-height:1.5}
+.srcs{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.srcs .lab{font-size:22px;color:var(--faint);margin-right:4px}
+.srcs .t{font-family:var(--mono);font-size:21px;color:var(--muted);border:1px dashed var(--line-2);border-radius:0;padding:4px 14px}
+.srcs .t.live{border-style:solid;border-color:var(--ok);color:var(--ok)}
+.actions{display:flex;flex-wrap:wrap;gap:16px;margin-top:auto}
+.btn{appearance:none;border:2px solid var(--line-2);background:transparent;color:var(--fg);font-size:28px;font-weight:600;line-height:1;padding:28px 36px;border-radius:0;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.wide{flex:1}
+
+/* card view: driving, or a narrow split window */
+.drive{position:absolute;inset:0;flex-direction:column;align-items:center;gap:40px;padding:56px 96px 48px;background:var(--bg-2)}
+.drive > *{width:100%;max-width:1760px}
+.dv-head{display:flex;align-items:center;justify-content:space-between;gap:20px;font-size:28px;color:var(--muted)}
+.dv-head .grp{display:flex;align-items:center;gap:16px}
+.dv-chip{font-size:24px;color:var(--muted);border:1px solid var(--line-2);border-radius:0;padding:8px 20px}
+.dv-card{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:48px;align-items:center;background:var(--bg-3);border:1px solid var(--line-2);border-radius:0;padding:56px;--c:var(--alert)}
+.dv-card .pill{font-size:30px;padding:8px 24px}
+.dv-left{display:flex;flex-direction:column;min-width:0}
+.dv-left .pill{align-self:flex-start}
+.dv-name{font-size:76px;font-weight:600;line-height:1.15;margin:28px 0 18px}
+.dv-line{font-size:42px;color:var(--fg);line-height:1.35;margin:0}
+.dv-left .btn{align-self:flex-start;margin-top:48px;font-size:34px;padding:34px 48px}
+.voice{display:flex;align-items:flex-start;gap:20px;margin-top:32px;font-size:30px;color:var(--fg);background:var(--sel);border-radius:0;padding:22px 28px}
+.voice svg{width:40px;height:40px;flex-shrink:0;stroke:var(--accent);fill:none;stroke-width:2.2;stroke-linecap:round}
+.topcar{width:100%;height:auto}
+.tc-body{fill:none;stroke:var(--line-2);stroke-width:4}
+.tc-glass{fill:var(--bg-2);stroke:var(--line-2);stroke-width:3}
+.tc-zone{fill:var(--bg-2);stroke:var(--line-2);stroke-width:3}
+.tc-wheel{fill:var(--line-2)}
+.tc-zone.hl,.tc-wheel.hl{fill:var(--c);stroke:var(--c);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.dv-foot{font-size:28px;color:var(--muted);margin:0}
+
+/* overlays */
+.banner{position:absolute;left:680px;top:28px;width:1200px;transform:translateX(-50%);display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:32px;padding:28px 32px;background:var(--bg-3);border:2px solid var(--line-2);border-radius:0;box-shadow:0 18px 48px var(--shadow);z-index:5;--c:var(--alert)}
+.screen[data-view="card"] .banner{left:50%}
+.banner .dot{width:64px;height:64px;border-radius:50%;background:var(--c);display:grid;place-items:center}
+.banner .dot svg{width:34px;height:34px;stroke:var(--scr-bg);fill:none;stroke-width:3;stroke-linecap:round}
+.banner b{display:block;font-size:34px;font-weight:600;line-height:1.3}
+.banner span{display:block;font-size:26px;color:var(--muted)}
+.banner .bb{display:flex;gap:14px}
+.banner .btn{padding:24px 30px;font-size:28px}
+.sheet{position:absolute;top:0;right:0;width:1200px;height:100%;background:var(--bg-2);border-left:1px solid var(--line-2);box-shadow:-24px 0 48px var(--shadow);display:flex;flex-direction:column;gap:32px;padding:40px 48px;z-index:4}
+.sh-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+.sh-head h3{font-size:48px;font-weight:600;margin:0;line-height:1.25}
+.sh-head p{font-size:26px;color:var(--muted);margin:8px 0 0}
+.xbtn{appearance:none;width:88px;height:88px;flex-shrink:0;border-radius:50%;border:2px solid var(--line-2);background:transparent;cursor:pointer;display:grid;place-items:center}
+.xbtn svg{width:36px;height:36px;stroke:var(--fg);stroke-width:3;stroke-linecap:round}
+.sh-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:28px}
+.sh-lab{font-size:24px;color:var(--faint);margin:0}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.opt{appearance:none;text-align:left;background:var(--bg-3);border:2px solid var(--line-2);border-radius:0;padding:28px 32px;cursor:pointer}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--sel)}
+.opt b{display:block;font-size:32px;font-weight:600}
+.opt span{display:block;font-size:24px;color:var(--muted);margin-top:6px}
+.slots{display:flex;flex-wrap:wrap;gap:16px}
+.slot{appearance:none;font-family:var(--mono);font-size:28px;background:var(--bg-3);border:2px solid var(--line-2);border-radius:0;padding:22px 32px;cursor:pointer;color:var(--fg)}
+.slot[aria-pressed="true"]{border-color:var(--accent);background:var(--sel)}
+.steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:20px;counter-reset:st}
+.steps li{display:grid;grid-template-columns:72px minmax(0,1fr);gap:24px;align-items:start;font-size:30px;line-height:1.45;background:var(--bg-3);border:1px solid var(--line-2);border-radius:0;padding:24px 28px}
+.steps li::before{counter-increment:st;content:counter(st);display:grid;place-items:center;width:64px;height:64px;border-radius:50%;border:2px solid var(--accent);color:var(--accent);font-family:var(--mono);font-size:30px}
+.sh-note{font-size:24px;color:var(--faint);margin:0}
+.sh-foot{display:flex;gap:16px}
+.toast{position:absolute;left:50%;bottom:36px;transform:translate(-50%,20px);opacity:0;pointer-events:none;max-width:1400px;background:var(--bg-3);border:2px solid var(--line-2);border-radius:0;padding:22px 32px;font-size:28px;transition:opacity .25s,transform .25s;z-index:6}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+</style>
+</head>
+<body>
+<div class="screen" id="screen" data-view="park">
+  <div class="apparea" id="apparea">
+    <section class="park" aria-label="정차 중 화면">
+      <div class="viewport" id="stage">
+        <canvas id="view" aria-label="돌려볼 수 있는 3D 차량 모델"></canvas>
+        <div class="fallback" id="fallback" hidden>3D 화면을 띄우지 못했어요. 오른쪽 점검 목록은 그대로 볼 수 있어요.</div>
+        <div class="tag" id="tag" hidden><span class="stem"></span><span class="pt"></span><span class="lbl"><b id="tagName"></b><span id="tagVal"></span></span></div>
+        <div class="hud">
+          <div class="hud-top">
+            <div>
+              <p class="eyebrow">Vehicle health scan</p>
+              <h2>차량 건강검진</h2>
+              <p class="meta" id="odoLine">누적 주행 <b>48,210</b> km</p>
+              <div class="scanline" id="scanline"><i></i><span id="scanText">진단 준비 중</span></div>
+              <div class="live" id="liveBadge"><i></i><span id="liveText">예시 데이터</span></div>
+            </div>
+            <div class="hud-ctrls">
+              <div class="modes" role="group" aria-label="보기 방식">
+                <button type="button" id="mode-xray" data-mode="xray" aria-pressed="true">투시</button>
+                <button type="button" id="mode-exterior" data-mode="exterior" aria-pressed="false">외관</button>
+                <button type="button" id="mode-skeleton" data-mode="skeleton" aria-pressed="false">골격</button>
+              </div>
+              <button type="button" class="chipbtn" id="dataToggle" aria-pressed="false" hidden>예시 데이터로 보기</button>
+              <button type="button" class="chipbtn" id="demoDrive" hidden>주행 화면 미리보기</button>
+            </div>
+          </div>
+          <div class="hud-bottom">
+            <div class="legend" aria-hidden="true">
+              <span><i class="sw" style="--c:var(--alert)"></i>즉시 정비</span>
+              <span><i class="sw" style="--c:var(--warn)"></i>점검 권장</span>
+              <span><i class="sw" style="--c:var(--ok)"></i>양호</span>
+            </div>
+            <div class="hint" id="hint">드래그해서 돌리고, 부품을 누르면 상태가 나와요</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel" aria-label="점검 결과">
+        <div class="col-l">
+          <div class="score">
+            <div class="score-num"><span id="scoreVal">70</span><small>/100</small></div>
+            <div><p class="eyebrow">건강 점수</p><p class="verdict" id="verdict">점검이 필요해요</p></div>
+          </div>
+          <div class="cells" id="cells" aria-hidden="true"></div>
+          <div class="lseg" role="group" aria-label="목록 범위">
+            <button type="button" id="list-issues" aria-pressed="true">확인 필요</button>
+            <button type="button" id="list-all" aria-pressed="false">전체</button>
+          </div>
+          <div class="rows" id="rows"></div>
+        </div>
+        <article class="detail" id="detail" aria-live="polite">
+          <div class="d-head"><span class="pill" id="dPill"></span><span class="zone" id="dZone"></span></div>
+          <h3 id="dName"></h3>
+          <div class="reading">
+            <div class="num"><span class="val" id="dVal"></span><span class="unit" id="dUnit"></span></div>
+            <div class="cap"><span id="dLabel"></span><span id="dRef"></span></div>
+          </div>
+          <div class="life" id="dLife"><div class="bar"><span id="dBar"></span></div><small id="dLifeTxt"></small></div>
+          <div class="spark" id="dSpark"></div>
+          <dl class="facts">
+            <div><dt>원인</dt><dd id="dWhy"></dd></div>
+            <div><dt>할 일</dt><dd id="dAct"></dd></div>
+            <div id="dCostRow"><dt>비용</dt><dd id="dCost"></dd></div>
+          </dl>
+          <div class="srcs" id="dSrcs"></div>
+          <div class="actions">
+            <button type="button" class="btn primary" id="bookBtn">정비소 예약</button>
+            <button type="button" class="btn primary" id="diyBtn">직접 교체 방법</button>
+            <button type="button" class="btn" id="focusBtn">3D에서 보기</button>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <section class="drive" aria-label="요약 화면">
+      <div class="dv-head">
+        <span>차량 건강검진</span>
+        <span class="grp"><button type="button" class="chipbtn" id="dvData" aria-pressed="false" hidden>예시 데이터로 보기</button><span class="dv-chip" id="dvChip">주행 중에는 요약만 보여요</span><button type="button" class="chipbtn" id="demoPark" hidden>정차 화면으로</button></span>
+      </div>
+      <div class="dv-card" id="dvCard">
+        <div class="dv-left">
+          <span class="pill" id="dvPill"></span>
+          <p class="dv-name" id="dvName"></p>
+          <p class="dv-line" id="dvLine"></p>
+          <button type="button" class="btn" id="voiceBtn">음성으로 듣기</button>
+          <div class="voice" id="voice" hidden>
+            <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+            <span id="voiceTxt"></span>
+          </div>
+        </div>
+        <svg class="topcar" viewBox="0 0 300 520" role="img" aria-label="문제 부품 위치">
+          <rect class="tc-wheel" id="tc-wFL" x="14" y="92" width="42" height="96" rx="14"/>
+          <rect class="tc-wheel" id="tc-wFR" x="244" y="92" width="42" height="96" rx="14"/>
+          <rect class="tc-wheel" id="tc-wRL" x="14" y="340" width="42" height="96" rx="14"/>
+          <rect class="tc-wheel" id="tc-wRR" x="244" y="340" width="42" height="96" rx="14"/>
+          <rect class="tc-body" x="40" y="16" width="220" height="488" rx="92"/>
+          <rect class="tc-zone" id="tc-frunk" x="84" y="44" width="132" height="70" rx="22"/>
+          <rect class="tc-zone" id="tc-dash" x="72" y="140" width="156" height="34" rx="12"/>
+          <rect class="tc-zone" id="tc-floor" x="80" y="196" width="140" height="226" rx="22"/>
+          <rect class="tc-glass" x="70" y="440" width="160" height="40" rx="14"/>
+        </svg>
+      </div>
+      <p class="dv-foot" id="dvFoot"></p>
+    </section>
+
+    <div class="banner" id="banner" hidden role="status">
+      <span class="dot"><svg viewBox="0 0 24 24"><path d="M12 6v8M12 18h.01"/></svg></span>
+      <div><b id="bnTitle"></b><span id="bnSub"></span></div>
+      <div class="bb" id="bnBtns"></div>
+    </div>
+    <div class="sheet" id="sheet" hidden role="dialog" aria-modal="false" aria-labelledby="shTitle">
+      <div class="sh-head">
+        <div><h3 id="shTitle"></h3><p id="shSub"></p></div>
+        <button type="button" class="xbtn" id="shClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="sh-body" id="shBody"></div>
+      <div class="sh-foot" id="shFoot"></div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+(function(){
+'use strict';
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var Android = window.AndroidBridge || null;
+
+/* ================= data: example values, replaced by vehicle data when connected ================= */
+var DEMO_ITEMS = [
+  { id:'brakeF', name:'앞 브레이크 패드', status:'alert', zone:'앞바퀴 · 좌우', val:'6', unit:'%', label:'남은 수명 추정', ref:'제동 기록으로 계산한 추정값', life:0.06, short:'이번 주 교체',
+    why:'1 km당 제동 횟수가 같은 차종 평균보다 1.6배 많아서 예상보다 빨리 닳았어요.',
+    act:'이번 주 안에 교체하세요. 그대로 타면 디스크까지 상해 수리비가 두 배 넘게 들 수 있어요.',
+    cost:'8~12만 원 · 약 1시간', data:['브레이크 페달 상태','누적 주행거리'], view:[0.85,0.3,1], dist:3.9, halo:0.5, book:true,
+    drive:'이번 주 안에 교체하세요', voice:'앞 브레이크 패드 교체가 필요해요. 정차하면 자세히 알려 드릴게요.', top:['wFL','wFR'] },
+  { id:'tireLow', name:'타이어 공기압', status:'warn', zone:'앞 왼쪽', val:'저압', unit:'', label:'저압 경고', ref:'앞 왼쪽 바퀴에서 경고', short:'앞 왼쪽 저압', lowWheels:['FL'],
+    why:'앞 왼쪽 바퀴에서 저압 경고가 들어왔어요. 2주 전 공기를 넣은 뒤 다시 경고가 떠서 실펑크일 수 있어요.',
+    act:'가까운 타이어 전문점에서 펑크 점검을 받으세요. 그전까지는 권장 공기압으로 맞춰 두세요.',
+    cost:'펑크 수리 1~2만 원 · 약 20분', data:['바퀴별 저압 경고'], view:[0.55,0.32,-1], dist:3.9, halo:0.62, book:true,
+    drive:'공기압이 낮아요. 점검을 받으세요', voice:'앞 왼쪽 타이어 공기압이 낮아요. 정차하면 자세히 알려 드릴게요.' },
+  { id:'washer', name:'와셔액', status:'warn', zone:'보닛 안쪽', val:'부족', unit:'', label:'와셔액 경고', ref:'보충이 필요해요', short:'보충 필요',
+    why:'와셔액 부족 경고가 들어왔어요. 비나 눈이 오는 날 앞 유리를 닦지 못할 수 있어요.',
+    act:'직접 보충할 수 있어요. 보닛 안쪽의 유리창 그림이 있는 탱크에 채우면 돼요.',
+    cost:'와셔액 2~5천 원 · 직접 하면 5분', data:['와셔액 부족 경고'], view:[1,0.9,0.45], dist:3.5, halo:0.46, top:['frunk'],
+    drive:'와셔액을 보충하세요', voice:'와셔액이 부족해요. 정차하면 보충 방법을 알려 드릴게요.',
+    diy:{ time:'약 5분', parts:'와셔액 1통', btn:'보충 완료', verb:'보충',
+      steps:['차를 평평한 곳에 세우고 보닛을 열어요.','유리창과 물줄기 그림이 있는 탱크 뚜껑을 찾아 열어요.','와셔액을 표시선까지 천천히 부어요.','뚜껑을 닫고 보닛을 내려요.'],
+      done:{ val:'정상', label:'와셔액 경고', ref:'방금 보충했어요', short:'방금 보충', why:'방금 와셔액을 보충했어요.', act:'경고가 다시 들어오면 알려 드릴게요.', cost:'' } } },
+  { id:'cabinFilter', name:'에어컨 필터', status:'warn', zone:'조수석 글로브박스 안쪽', val:'286', unit:'시간', label:'교체 후 공조 사용', ref:'교체 기준 300시간', life:0.05, short:'교체 시기 임박',
+    why:'교체 후 공조를 286시간 썼어요. 교체 기준에 거의 다 됐어요.',
+    act:'직접 교체할 수 있어요. 글로브박스를 열고 안쪽 덮개를 빼면 필터가 나와요.',
+    cost:'부품 1~2만 원 · 직접 하면 10분', data:['공조 팬 속도','에어컨·내외기 상태','교체 기록'], view:[0.35,0.9,1], dist:3.4, halo:0.42, top:['dash'],
+    drive:'교체 시기가 거의 됐어요', voice:'에어컨 필터 교체 시기가 거의 됐어요. 정차하면 교체 방법을 알려 드릴게요.',
+    diy:{ time:'약 10분', parts:'에어컨 필터 1개', btn:'교체 완료', verb:'교체',
+      steps:['글로브박스 안의 물건을 꺼내고 문을 열어요.','양옆 고정 장치를 눌러 글로브박스를 아래로 내려요.','안쪽 필터 덮개를 열고 헌 필터를 빼요.','필터에 표시된 화살표 방향을 확인해 새 필터를 넣고, 덮개와 글로브박스를 닫아요.'],
+      done:{ val:'0', ref:'교체 기준 300시간', life:1, short:'방금 교체', why:'방금 직접 교체했어요.', act:'다음 교체 시기가 되면 다시 알려 드릴게요.', cost:'' } } },
+  { id:'brakeFluid', name:'브레이크액', status:'ok', zone:'보닛 안 운전석 쪽', val:'정상', unit:'', label:'수위', ref:'수위 센서 기준', short:'수위 정상',
+    why:'브레이크액 수위가 정상이에요.', act:'정기 점검 때 함께 확인하면 돼요.', cost:'', data:['브레이크액 수위 상태'], view:[1,0.9,-0.5], dist:3.5, halo:0.36, top:['frunk'],
+    drive:'브레이크액을 점검하세요', voice:'브레이크액 수위가 낮아요. 안전한 곳에 정차해 주세요.' },
+  { id:'reducer', name:'감속기 오일', status:'ok', zone:'모터 옆 기어박스', val:'정상', unit:'', label:'오일 수위', ref:'변속기 오일 수위 상태 기준', short:'수위 정상',
+    why:'감속기 오일 수위가 정상이에요.', act:'따로 할 일은 없어요.', cost:'', data:['변속기 오일 수위 상태','누적 주행거리'], view:[1,0.5,0.6], dist:4.0, halo:0.4, top:['frunk'],
+    drive:'감속기 오일을 점검하세요', voice:'감속기 오일 점검이 필요해요. 정차하면 자세히 알려 드릴게요.' },
+  { id:'hvBattery', name:'고전압 배터리', status:'ok', zone:'차체 바닥', val:'5.8', unit:'km/kWh', label:'누적 전비', ref:'3개월 전 5.9 km/kWh', short:'전비 안정적',
+    trend:[5.92,5.95,5.9,5.88,5.91,5.86,5.85,5.87,5.83,5.84,5.82,5.8], refVal:5.5, refLab:'기준 5.5', span:'3개월 전',
+    why:'비슷한 날씨에서 전비가 거의 그대로예요. 배터리 이상으로 볼 만한 변화는 없어요.', act:'지금처럼 타면 돼요.', cost:'', data:['누적 전비','충전량'], view:[0.2,0.75,1], dist:5.4, halo:0.9, top:['floor'],
+    drive:'배터리 점검이 필요해요', voice:'고전압 배터리 효율이 떨어졌어요. 정차하면 자세히 알려 드릴게요.' },
+  { id:'brakeR', name:'뒤 브레이크 패드', status:'ok', zone:'뒷바퀴 · 좌우', val:'63', unit:'%', label:'남은 수명 추정', ref:'제동 기록으로 계산한 추정값', life:0.63, short:'여유 있음',
+    why:'앞바퀴보다 제동 부담이 적어서 천천히 닳고 있어요.', act:'다음 정기 점검 때 같이 보면 돼요.', cost:'', data:['브레이크 페달 상태','누적 주행거리'], view:[-0.8,0.32,1], dist:3.9, halo:0.44, top:['wRL','wRR'],
+    drive:'뒤 브레이크 패드를 점검하세요', voice:'뒤 브레이크 패드 점검이 필요해요.' },
+  { id:'wiper', name:'와이퍼', status:'ok', zone:'앞 유리 아래', val:'42', unit:'시간', label:'교체 후 작동 시간', ref:'교체 기준 100시간', life:0.58, short:'여유 있음',
+    why:'교체 후 와이퍼를 42시간 썼어요.', act:'유리에 줄무늬가 남기 시작하면 교체하세요.', cost:'', data:['와이퍼 작동 상태','교체 기록'], view:[1,0.95,0.15], dist:3.6, halo:0.4, top:['dash'],
+    drive:'와이퍼를 교체하세요', voice:'와이퍼 교체 시기가 됐어요.',
+    diy:{ time:'약 5분', parts:'와이퍼 블레이드 2개', btn:'교체 완료', verb:'교체',
+      steps:['와이퍼 암을 유리에서 조심히 세워요.','고정 버튼을 누른 채 헌 블레이드를 아래로 밀어 빼요.','새 블레이드를 딸깍 소리가 날 때까지 끼워요.','암을 천천히 내려 유리에 닿게 해요.'],
+      done:{ val:'0', ref:'교체 기준 100시간', life:1, short:'방금 교체', why:'방금 직접 교체했어요.', act:'다음 교체 시기가 되면 다시 알려 드릴게요.', cost:'' } } }
+];
+var DATA_FIELDS = ['status','zone','val','unit','label','ref','life','short','why','act','cost','trend','refVal','refLab','span','lowWheels','done','live','raw','book'];
+var ITEMS = DEMO_ITEMS.map(function(it){ return JSON.parse(JSON.stringify(it)); });
+var LABEL = { alert:'즉시 정비', warn:'점검 권장', ok:'양호' };
+var CSSVAR = { alert:'var(--alert)', warn:'var(--warn)', ok:'var(--ok)' };
+var RANK = { alert:0, warn:1, ok:2 };
+var WHEEL_KO = { FL:'앞 왼쪽', FR:'앞 오른쪽', RL:'뒤 왼쪽', RR:'뒤 오른쪽' };
+var byId = {};
+ITEMS.forEach(function(it, i){ byId[it.id] = it; it.order = i; it.mats = []; it.meshes = []; it.anchorObjs = []; it.anchorWheel = []; it.anchors = []; it.halos = []; });
+var state = { selected:'brakeF', hover:null, mode:'xray', interacted:false, drive:false, compact:false, listAll:false, sheet:null, connected:false, uxConnected:false, dataMode:'demo', lastVehicle:null };
+
+function $(id){ return document.getElementById(id); }
+function valText(it){ return !it.unit ? it.val : it.unit === '%' ? it.val + '%' : it.val + ' ' + it.unit; }
+function sorted(){ return ITEMS.slice().sort(function(a, b){ return RANK[a.status] - RANK[b.status] || a.order - b.order; }); }
+function issues(){ return sorted().filter(function(it){ return it.status !== 'ok'; }); }
+function counts(){ var c = { alert:0, warn:0, ok:0 }; ITEMS.forEach(function(it){ c[it.status]++; }); return c; }
+function topZones(it){ if (it.id === 'tireLow') return (it.lowWheels || []).map(function(w){ return 'w' + w; }); return it.top || []; }
+
+/* ================= window scaling ================= */
+var scale = 0.5, onScale = null;
+function fit(){
+  var w = window.innerWidth || 1280, h = window.innerHeight || 720;
+  state.compact = w / h < 1.3;
+  var logicalW = state.compact ? 1280 : 2560;
+  scale = w / logicalW;
+  var screen = $('screen');
+  screen.style.width = logicalW + 'px';
+  screen.style.height = Math.round(h / scale) + 'px';
+  screen.style.transform = 'scale(' + scale + ')';
+  applyView();
+  if (onScale) onScale();
+}
+window.addEventListener('resize', fit);
+function applyView(){
+  var card = state.drive || state.compact;
+  $('screen').dataset.view = card ? 'card' : 'park';
+  if (card) renderDrive();
+}
+
+/* ================= panel ================= */
+function renderSummary(){
+  var c = counts(), score = Math.max(0, 100 - c.alert * 15 - c.warn * 5);
+  $('scoreVal').textContent = score;
+  $('verdict').textContent = score >= 90 ? '건강해요' : score >= 75 ? '대체로 괜찮아요' : '점검이 필요해요';
+  var cells = $('cells'); cells.innerHTML = '';
+  cells.style.gridTemplateColumns = 'repeat(' + ITEMS.length + ',1fr)';
+  sorted().forEach(function(it){ var i = document.createElement('i'); i.style.setProperty('--c', CSSVAR[it.status]); cells.appendChild(i); });
+  $('list-issues').textContent = '확인 필요 ' + (c.alert + c.warn);
+  $('list-all').textContent = '전체 ' + ITEMS.length;
+}
+function renderList(){
+  var root = $('rows'); root.innerHTML = '';
+  var list = state.listAll ? sorted() : issues();
+  if (!list.length){ var p = document.createElement('p'); p.className = 'empty'; p.textContent = '확인할 항목이 없어요'; root.appendChild(p); }
+  list.forEach(function(it){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'row'; b.id = 'row-' + it.id; b.dataset.id = it.id;
+    var dot = document.createElement('i'); dot.className = 'sw'; dot.style.setProperty('--c', CSSVAR[it.status]);
+    var mid = document.createElement('span');
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.name;
+    var sh = document.createElement('span'); sh.className = 'sh'; sh.textContent = it.short;
+    mid.appendChild(nm); mid.appendChild(sh);
+    var v = document.createElement('span'); v.className = 'v'; v.textContent = valText(it);
+    b.appendChild(dot); b.appendChild(mid); b.appendChild(v);
+    b.setAttribute('aria-current', it.id === state.selected ? 'true' : 'false');
+    b.addEventListener('click', function(){ select(it.id, { focus:true }); });
+    root.appendChild(b);
+  });
+}
+function sparkSVG(it){
+  var v = it.trend, n = v.length, W = 320, H = 74, pl = 2, pr = 58, pt = 8, pb = 18;
+  var lo = Math.min.apply(null, v.concat([it.refVal])), hi = Math.max.apply(null, v.concat([it.refVal]));
+  var pad = (hi - lo) * 0.18 || 0.5, y0 = lo - pad, y1 = hi + pad;
+  function X(i){ return pl + i * (W - pl - pr) / (n - 1); }
+  function Y(val){ return pt + (1 - (val - y0) / (y1 - y0)) * (H - pt - pb); }
+  var d = '';
+  for (var i = 0; i < n; i++) d += (i ? 'L' : 'M') + X(i).toFixed(1) + ',' + Y(v[i]).toFixed(1);
+  var area = d + 'L' + X(n - 1).toFixed(1) + ',' + (H - pb) + 'L' + X(0).toFixed(1) + ',' + (H - pb) + 'Z';
+  var ry = Y(it.refVal).toFixed(1), ex = X(n - 1).toFixed(1), ey = Y(v[n - 1]).toFixed(1);
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + it.span + '부터 오늘까지 ' + it.label + ' 추이">' +
+    '<defs><linearGradient id="spg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".3"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>' +
+    '<line class="sp-axis" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + (H - pb) + '" y2="' + (H - pb) + '"/>' +
+    '<line class="sp-ref" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + ry + '" y2="' + ry + '"/>' +
+    '<text class="sp-lab" x="' + (W - pr + 6) + '" y="' + (+ry + 3.5) + '">' + it.refLab + '</text>' +
+    '<path d="' + area + '" fill="url(#spg)"/>' +
+    '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<circle cx="' + ex + '" cy="' + ey + '" r="3.6" fill="currentColor"/>' +
+    '<text class="sp-lab" x="' + (W - pr + 6) + '" y="' + (+ey + 3.5) + '" style="fill:currentColor">' + it.val + '</text>' +
+    '<text class="sp-lab" x="' + pl + '" y="' + (H - 3) + '">' + it.span + '</text>' +
+    '<text class="sp-lab" x="' + (W - pr) + '" y="' + (H - 3) + '" text-anchor="end">오늘</text></svg>';
+}
+function renderDetail(){
+  var it = byId[state.selected];
+  $('detail').style.setProperty('--c', CSSVAR[it.status]);
+  $('dPill').textContent = LABEL[it.status];
+  $('dZone').textContent = it.zone;
+  $('dName').textContent = it.name;
+  $('dVal').textContent = it.val;
+  $('dUnit').textContent = it.unit;
+  $('dLabel').textContent = it.label;
+  $('dRef').textContent = it.ref;
+  var hasLife = typeof it.life === 'number' && !(it.trend && it.trend.length > 1);
+  $('dLife').hidden = !hasLife;
+  if (hasLife){ $('dBar').style.width = Math.max(3, Math.round(it.life * 100)) + '%'; $('dLifeTxt').textContent = '남은 수명 ' + Math.round(it.life * 100) + '%'; }
+  var sp = $('dSpark');
+  if (it.trend && it.trend.length > 1){ sp.hidden = false; sp.innerHTML = sparkSVG(it); } else { sp.hidden = true; sp.innerHTML = ''; }
+  $('dWhy').textContent = it.why;
+  $('dAct').textContent = it.act;
+  $('dCostRow').hidden = !it.cost || it.status === 'ok';
+  $('dCost').textContent = it.cost;
+  var srcs = $('dSrcs'); srcs.innerHTML = '';
+  var lab = document.createElement('span'); lab.className = 'lab'; lab.textContent = it.live ? '차량에서 읽은 데이터' : '사용하는 차량 데이터';
+  srcs.appendChild(lab);
+  it.data.forEach(function(d){ var s = document.createElement('span'); s.className = 't' + (it.live ? ' live' : ''); s.textContent = d; srcs.appendChild(s); });
+  if (it.live && it.raw != null){ var r = document.createElement('span'); r.className = 't'; r.textContent = 'SDK 값: ' + it.raw; srcs.appendChild(r); }
+  $('bookBtn').hidden = !(it.book && it.status !== 'ok');
+  $('diyBtn').hidden = !it.diy || it.done;
+  if (it.diy) $('diyBtn').textContent = '직접 ' + it.diy.verb + ' 방법';
+  document.querySelectorAll('.row').forEach(function(r){ r.setAttribute('aria-current', r.dataset.id === it.id ? 'true' : 'false'); });
+  $('tagName').textContent = it.name;
+  $('tagVal').textContent = LABEL[it.status] + ' · ' + valText(it);
+  $('tag').style.setProperty('--c', CSSVAR[it.status]);
+}
+function renderDrive(){
+  var list = issues(), it = list[0];
+  var card = $('dvCard');
+  ['wFL','wFR','wRL','wRR','frunk','dash','floor'].forEach(function(k){ $('tc-' + k).classList.remove('hl'); });
+  $('voice').hidden = true;
+  $('dvChip').textContent = state.drive ? '주행 중에는 요약만 보여요' : '창이 좁아서 요약만 보여요';
+  $('demoPark').hidden = !(state.drive && !state.uxConnected);
+  if (!it){
+    card.style.setProperty('--c', 'var(--ok)');
+    $('dvPill').textContent = '양호'; $('dvName').textContent = '모든 항목이 정상이에요'; $('dvLine').textContent = '편하게 운전하세요';
+    $('voiceBtn').hidden = true; $('dvFoot').textContent = '';
+    return;
+  }
+  card.style.setProperty('--c', CSSVAR[it.status]);
+  $('dvPill').textContent = LABEL[it.status];
+  $('dvName').textContent = it.id === 'tireLow' && it.lowWheels && it.lowWheels.length ? WHEEL_KO[it.lowWheels[0]] + ' 타이어' : it.name;
+  $('dvLine').textContent = it.drive;
+  $('voiceBtn').hidden = false;
+  topZones(it).forEach(function(k){ var el = $('tc-' + k); if (el) el.classList.add('hl'); });
+  if (list.length > 1) $('dvFoot').textContent = state.drive ? '나머지 ' + (list.length - 1) + '건은 정차하면 보여 드릴게요' : '확인 필요 항목이 ' + (list.length - 1) + '건 더 있어요';
+  else $('dvFoot').textContent = state.drive ? '정차하면 자세한 내용을 보여 드릴게요' : '';
+}
+function renderAll(){ renderSummary(); renderList(); renderDetail(); if (state.drive || state.compact) renderDrive(); }
+
+/* ================= toast, banner, sheet ================= */
+var toastTimer = null;
+function toast(msg){
+  var t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+var bannerTimer = null;
+function hideBanner(){ $('banner').hidden = true; clearTimeout(bannerTimer); }
+function mkBtn(label, cls, fn){ var b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || ''); b.textContent = label; b.addEventListener('click', fn); return b; }
+function showBanner(){
+  var list = issues(), bn = $('banner'), btns = $('bnBtns');
+  btns.innerHTML = '';
+  if (!list.length){
+    bn.style.setProperty('--c', 'var(--ok)');
+    $('bnTitle').textContent = '진단 완료 · 모든 항목이 정상이에요';
+    $('bnSub').textContent = '다음 진단은 다음 시동 때 해요';
+    btns.appendChild(mkBtn('확인', '', hideBanner));
+  } else if (state.drive){
+    var it = list[0];
+    bn.style.setProperty('--c', CSSVAR[it.status]);
+    $('bnTitle').textContent = it.name + ' ' + (it.status === 'alert' ? '정비가 필요해요' : '점검이 필요해요');
+    $('bnSub').textContent = '정차하면 자세히 알려 드릴게요';
+    btns.appendChild(mkBtn('확인', '', hideBanner));
+    speak(it);
+  } else {
+    var c = counts();
+    bn.style.setProperty('--c', c.alert ? 'var(--alert)' : 'var(--warn)');
+    $('bnTitle').textContent = '진단 완료 · 확인 필요 ' + list.length + '건';
+    $('bnSub').textContent = list[0].name + (list[0].status === 'alert' ? ' 정비가 가장 급해요' : ' 점검이 가장 급해요');
+    btns.appendChild(mkBtn('자세히 보기', 'primary', function(){ hideBanner(); select(list[0].id, { focus:true }); }));
+    btns.appendChild(mkBtn('나중에', '', hideBanner));
+  }
+  bn.hidden = false;
+  clearTimeout(bannerTimer);
+  /* Issues stay on screen until the driver taps a button; only the all-clear and driving notices fade out. */
+  if (!list.length || state.drive) bannerTimer = setTimeout(hideBanner, 9000);
+}
+function speak(it){
+  $('voiceTxt').textContent = '“' + it.voice + '”';
+  $('voice').hidden = false;
+  if (Android && Android.speak) { try { Android.speak(it.voice); } catch (e) {} }
+  setTimeout(function(){ $('voice').hidden = true; }, 6000);
+}
+$('voiceBtn').addEventListener('click', function(){ var it = issues()[0]; if (it) speak(it); });
+
+function closeSheet(){ $('sheet').hidden = true; state.sheet = null; }
+$('shClose').addEventListener('click', closeSheet);
+function openBook(it){
+  state.sheet = 'book';
+  $('shTitle').textContent = '정비소 예약';
+  $('shSub').textContent = it.name + ' · ' + (it.cost || '비용은 정비소에서 안내해요') + ' · 예시 화면';
+  var body = $('shBody'); body.innerHTML = '';
+  var shopLab = document.createElement('p'); shopLab.className = 'sh-lab'; shopLab.textContent = '가까운 정비소';
+  var opts = document.createElement('div'); opts.className = 'opts';
+  [['정비소 A', '1.2 km · 오늘 19:00부터'], ['정비소 B', '2.8 km · 내일 10:00부터']].forEach(function(o, i){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    b.innerHTML = '<b></b><span></span>'; b.querySelector('b').textContent = o[0]; b.querySelector('span').textContent = o[1];
+    b.addEventListener('click', function(){ opts.querySelectorAll('.opt').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
+    opts.appendChild(b);
+  });
+  var slotLab = document.createElement('p'); slotLab.className = 'sh-lab'; slotLab.textContent = '방문 시간';
+  var slots = document.createElement('div'); slots.className = 'slots';
+  ['오늘 19:00', '내일 10:00', '내일 14:30', '모레 09:30'].forEach(function(s, i){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'slot'; b.textContent = s; b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    b.addEventListener('click', function(){ slots.querySelectorAll('.slot').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
+    slots.appendChild(b);
+  });
+  var note = document.createElement('p'); note.className = 'sh-note'; note.textContent = '진단 결과가 정비소에 함께 전달돼서 처음부터 다시 설명하지 않아도 돼요.';
+  body.appendChild(shopLab); body.appendChild(opts); body.appendChild(slotLab); body.appendChild(slots); body.appendChild(note);
+  var foot = $('shFoot'); foot.innerHTML = '';
+  foot.appendChild(mkBtn('이 시간으로 예약', 'primary wide', function(){
+    var shop = opts.querySelector('[aria-pressed="true"] b').textContent, slot = slots.querySelector('[aria-pressed="true"]').textContent;
+    closeSheet(); toast('예시 화면이에요. 실제 서비스에서는 ' + shop + ' ' + slot + ' 예약이 확정돼요.');
+  }));
+  $('sheet').hidden = false;
+}
+function openDiy(it){
+  state.sheet = 'diy';
+  $('shTitle').textContent = it.name + ' 직접 ' + it.diy.verb;
+  $('shSub').textContent = it.diy.time + ' · 필요한 것: ' + it.diy.parts;
+  var body = $('shBody'); body.innerHTML = '';
+  var ol = document.createElement('ol'); ol.className = 'steps';
+  it.diy.steps.forEach(function(s){ var li = document.createElement('li'); var sp = document.createElement('span'); sp.textContent = s; li.appendChild(sp); ol.appendChild(li); });
+  var note = document.createElement('p'); note.className = 'sh-note'; note.textContent = '차종마다 순서가 조금 다를 수 있어요. 마치면 정비 기록에 남고, 다음 시기를 다시 계산해요.';
+  body.appendChild(ol); body.appendChild(note);
+  var foot = $('shFoot'); foot.innerHTML = '';
+  foot.appendChild(mkBtn(it.diy.btn, 'primary wide', function(){ completeDiy(it); }));
+  $('sheet').hidden = false;
+}
+function completeDiy(it){
+  var d = it.diy.done;
+  Object.keys(d).forEach(function(k){ it[k] = d[k]; });
+  it.status = 'ok'; it.done = true;
+  var demo = DEMO_ITEMS.filter(function(x){ return x.id === it.id; })[0];
+  if (demo){ Object.keys(d).forEach(function(k){ demo[k] = d[k]; }); demo.status = 'ok'; demo.done = true; }
+  if (Android && Android.recordReplacement) { try { Android.recordReplacement(it.id); } catch (e) {} }
+  closeSheet();
+  renderAll();
+  toast(it.name + ' ' + it.diy.verb + ' 기록을 남겼어요');
+}
+$('bookBtn').addEventListener('click', function(){ openBook(byId[state.selected]); });
+$('diyBtn').addEventListener('click', function(){ openDiy(byId[state.selected]); });
+
+/* ================= selection, modes ================= */
+var focusHook = null, selectHook = null, driveHook = null;
+function select(id, opts){
+  opts = opts || {};
+  state.selected = id;
+  renderDetail();
+  if (selectHook) selectHook(id);
+  if (opts.focus && focusHook) focusHook(byId[id]);
+  hideHint();
+}
+$('focusBtn').addEventListener('click', function(){ select(state.selected, { focus:true }); });
+function hideHint(){ state.interacted = true; $('hint').classList.add('gone'); }
+function setList(all){
+  state.listAll = all;
+  $('list-issues').setAttribute('aria-pressed', all ? 'false' : 'true');
+  $('list-all').setAttribute('aria-pressed', all ? 'true' : 'false');
+  renderList();
+}
+$('list-issues').addEventListener('click', function(){ setList(false); });
+$('list-all').addEventListener('click', function(){ setList(true); });
+function setDrive(on){
+  if (state.drive === on) return;
+  state.drive = on;
+  closeSheet(); hideBanner();
+  applyView();
+  if (driveHook) driveHook(on);
+}
+$('demoDrive').addEventListener('click', function(){ setDrive(true); });
+$('demoPark').addEventListener('click', function(){ setDrive(false); });
+
+/* ================= vehicle data from the app (Kotlin) ================= */
+function abnormal(v){
+  if (v === true) return true;
+  if (v === false || v == null) return false;
+  var s = String(v).toUpperCase();
+  if (/(^|_)(LOW|WARN|WARNING|EMPTY|ABNORMAL|ERROR|FAULT|CRITICAL)($|_)/.test(s)) return true;
+  return false;
+}
+function wheelCode(name){
+  var s = String(name).toUpperCase();
+  var front = /FRONT|ROW_1/.test(s), rear = /REAR|ROW_2/.test(s), left = /LEFT/.test(s), right = /RIGHT/.test(s);
+  if (front && left) return 'FL'; if (front && right) return 'FR'; if (rear && left) return 'RL'; if (rear && right) return 'RR';
+  return null;
+}
+function liveSet(it, f){ Object.keys(f).forEach(function(k){ it[k] = f[k]; }); it.live = true; }
+function restoreDemo(){
+  DEMO_ITEMS.forEach(function(d){ var it = byId[d.id]; DATA_FIELDS.forEach(function(k){ if (k in d) it[k] = JSON.parse(JSON.stringify(d[k])); else delete it[k]; }); it.live = false; it.raw = null; });
+}
+function hours(sec){ return Math.round((sec || 0) / 360) / 10; }
+function applyLive(d){
+  var v = d.values || {}, u = d.usage || {}, n = 0;
+  if ('washerLow' in v){ n++; var wl = abnormal(v.washerLow);
+    liveSet(byId.washer, wl ? { status:'warn', val:'부족', ref:'보충이 필요해요', short:'보충 필요', why:'차에서 와셔액 부족 경고를 보냈어요.', act:'보닛 안쪽의 유리창 그림이 있는 탱크에 와셔액을 채우세요.', raw:String(v.washerLow) }
+                          : { status:'ok', val:'정상', ref:'경고 없음', short:'정상', why:'와셔액 부족 경고가 없어요.', act:'따로 할 일은 없어요.', raw:String(v.washerLow) }); }
+  if ('brakeFluid' in v){ n++; var bl = abnormal(v.brakeFluid);
+    liveSet(byId.brakeFluid, bl ? { status:'alert', val:'부족', short:'수위 낮음', why:'차에서 브레이크액 수위가 낮다고 보냈어요.', act:'안전한 곳에 정차한 뒤 정비소에 점검을 맡기세요.', raw:String(v.brakeFluid), book:true }
+                              : { status:'ok', val:'정상', short:'수위 정상', why:'브레이크액 수위가 정상이에요.', act:'정기 점검 때 함께 확인하면 돼요.', raw:String(v.brakeFluid) }); }
+  if ('transOil' in v){ n++; var tl = abnormal(v.transOil);
+    liveSet(byId.reducer, tl ? { status:'warn', val:'점검', short:'수위 이상', why:'차에서 감속기(변속기) 오일 수위 이상을 보냈어요.', act:'정비소에서 오일 상태를 점검하세요.', raw:String(v.transOil), book:true }
+                             : { status:'ok', val:'정상', short:'수위 정상', why:'감속기 오일 수위가 정상이에요.', act:'따로 할 일은 없어요.', raw:String(v.transOil) }); }
+  var low = [], seen = 0;
+  Object.keys(v).forEach(function(k){ if (k.indexOf('lowTire_') === 0){ seen++; var c = wheelCode(k.slice(8)); if (c && abnormal(v[k]) && low.indexOf(c) < 0) low.push(c); } });
+  if (seen){ n++;
+    var names = low.map(function(c){ return WHEEL_KO[c]; }).join(', ');
+    liveSet(byId.tireLow, low.length ? { status:'warn', val:'저압', zone:names, ref:names + ' 바퀴에서 경고', short:names + ' 저압', lowWheels:low, why:names + ' 바퀴에서 저압 경고가 들어왔어요.', act:'공기압을 맞추고, 경고가 다시 뜨면 펑크 점검을 받으세요.', raw:low.join(',') }
+                                    : { status:'ok', val:'정상', zone:'네 바퀴', ref:'저압 경고 없음', short:'정상', lowWheels:[], why:'네 바퀴 모두 저압 경고가 없어요.', act:'한 달에 한 번 공기압을 확인하면 좋아요.', raw:'없음' }); }
+  if (typeof v.evEfficiency === 'number'){ n++;
+    var hist = (u.efficiencyHistory || []).filter(function(x){ return typeof x === 'number'; });
+    liveSet(byId.hvBattery, { status:'ok', val:(Math.round(v.evEfficiency * 10) / 10).toString(), unit:'', label:'누적 전비 (차량 단위)', ref:hist.length > 1 ? '기록 ' + hist.length + '일' : '기록을 모으는 중이에요', short:'전비 확인 중', trend:hist.length > 1 ? hist : null, why:'차가 보낸 누적 전비를 매일 기록해 변화를 지켜봐요.', act:'전비가 눈에 띄게 떨어지면 알려 드릴게요.', raw:String(v.evEfficiency) }); }
+  if (typeof u.hvacSeconds === 'number'){ n++;
+    var hh = hours(u.hvacSeconds), lf = Math.max(0, 1 - hh / 300);
+    liveSet(byId.cabinFilter, { status:hh >= 330 ? 'alert' : hh >= 270 ? 'warn' : 'ok', val:String(hh), unit:'시간', ref:'교체 기준 300시간', life:lf, short:hh >= 270 ? '교체 시기 임박' : '여유 있음', why:'교체 후 공조를 ' + hh + '시간 썼어요. 앱이 켜져 있는 동안 기록해요.', act:hh >= 270 ? '직접 교체할 수 있어요. 글로브박스 안쪽에 있어요.' : '따로 할 일은 없어요.', raw:null }); }
+  if (typeof u.wiperSeconds === 'number'){ n++;
+    var wh = hours(u.wiperSeconds), wlf = Math.max(0, 1 - wh / 100);
+    liveSet(byId.wiper, { status:wh >= 110 ? 'alert' : wh >= 90 ? 'warn' : 'ok', val:String(wh), unit:'시간', ref:'교체 기준 100시간', life:wlf, short:wh >= 90 ? '교체 시기' : '여유 있음', why:'교체 후 와이퍼를 ' + wh + '시간 썼어요. 앱이 켜져 있는 동안 기록해요.', act:wh >= 90 ? '새 블레이드로 교체하세요.' : '따로 할 일은 없어요.', raw:null }); }
+  if (typeof u.brakePresses === 'number'){ n++;
+    var fp = Math.max(0, 1 - u.brakePresses / 40000), rp = Math.max(0, 1 - u.brakePresses / 90000);
+    liveSet(byId.brakeF, { status:fp < 0.1 ? 'alert' : fp < 0.25 ? 'warn' : 'ok', val:String(Math.round(fp * 100)), life:fp, short:fp < 0.1 ? '교체 필요' : fp < 0.25 ? '점검 권장' : '여유 있음', why:'교체 후 브레이크를 ' + u.brakePresses + '번 밟았어요. 제동 횟수로 마모를 추정해요.', act:fp < 0.25 ? '정비소에서 패드 두께를 확인하세요.' : '따로 할 일은 없어요.', raw:null });
+    liveSet(byId.brakeR, { status:rp < 0.1 ? 'alert' : rp < 0.25 ? 'warn' : 'ok', val:String(Math.round(rp * 100)), life:rp, short:rp < 0.25 ? '점검 권장' : '여유 있음', why:'뒤 패드는 앞보다 천천히 닳아요. 제동 횟수로 추정해요.', act:rp < 0.25 ? '정비소에서 패드 두께를 확인하세요.' : '따로 할 일은 없어요.', raw:null }); }
+  ITEMS.forEach(function(it){
+    if (it.live) return;
+    liveSet(it, { status:'ok', val:'—', unit:'', ref:'차에서 값을 받지 못했어요', short:'데이터 없음', life:null, trend:null, lowWheels:[], why:'이 차에서는 아직 이 값을 받지 못했어요. Vehicle SDK가 이 항목을 지원하는지 확인하세요.', act:'예시 데이터로 보기를 누르면 시연용 화면을 볼 수 있어요.', cost:'', raw:null });
+    it.live = false;
+  });
+  return n;
+}
+function refreshLiveBadge(n){
+  var badge = $('liveBadge');
+  badge.classList.toggle('on', state.connected && state.dataMode === 'live');
+  if (!state.connected) $('liveText').textContent = '예시 데이터 · 차량 연결 안 됨';
+  else if (state.dataMode === 'demo') $('liveText').textContent = '예시 데이터로 보는 중';
+  else $('liveText').textContent = '차량 데이터 연결됨 · ' + n + '개 항목';
+  ['dataToggle', 'dvData'].forEach(function(id){
+    var b = $(id);
+    /* No extra controls while the car reports real driving; previews and split windows keep it. */
+    b.hidden = !state.connected || (id === 'dvData' && state.drive && state.uxConnected);
+    b.setAttribute('aria-pressed', state.dataMode === 'demo' ? 'true' : 'false');
+    b.textContent = state.dataMode === 'demo' ? '차량 데이터로 보기' : '예시 데이터로 보기';
+  });
+  $('demoDrive').hidden = state.uxConnected;
+}
+var liveCount = 0;
+function applyVehicleData(d){
+  state.lastVehicle = d;
+  state.connected = !!d.connected;
+  if (typeof d.odometerKm === 'number' && state.dataMode === 'live') $('odoLine').innerHTML = '누적 주행 <b>' + Math.round(d.odometerKm).toLocaleString('ko-KR') + '</b> km';
+  var before = issues().map(function(it){ return it.id + it.status; });
+  if (state.connected && state.dataMode === 'live') liveCount = applyLive(d);
+  refreshLiveBadge(liveCount);
+  if (!state.connected) return;
+  renderAll();
+  if ($('scanline').classList.contains('done')){ var ni = issues().length; $('scanText').textContent = ni ? '진단 완료 · 확인 필요 ' + ni + '건' : '진단 완료 · 모두 정상'; }
+  /* A new or worse problem pops up the banner right away (with voice while driving). */
+  var after = issues().map(function(it){ return it.id + it.status; });
+  var fresh = after.some(function(k){ return before.indexOf(k) < 0; });
+  if (fresh && $('scanline').classList.contains('done') && !state.sheet) showBanner();
+}
+function setDataMode(mode){
+  state.dataMode = mode;
+  restoreDemo();
+  if (mode === 'demo') $('odoLine').innerHTML = '누적 주행 <b>48,210</b> km';
+  if (mode === 'live' && state.lastVehicle) applyVehicleData(state.lastVehicle);
+  refreshLiveBadge(liveCount);
+  renderAll();
+  if ($('scanline').classList.contains('done')){ var ni = issues().length; $('scanText').textContent = ni ? '진단 완료 · 확인 필요 ' + ni + '건' : '진단 완료 · 모두 정상'; if (!state.sheet) showBanner(); }
+}
+function toggleData(){ setDataMode(state.dataMode === 'demo' ? 'live' : 'demo'); }
+$('dataToggle').addEventListener('click', toggleData);
+$('dvData').addEventListener('click', toggleData);
+window.PleosBridge = {
+  onTheme: function(t){ document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light'; },
+  onVehicleData: function(d){ try { if (typeof d === 'string') d = JSON.parse(d); if (state.dataMode === 'demo' && d.connected && !state.connected){ state.dataMode = 'live'; } applyVehicleData(d); } catch (e) { if (Android && Android.log) Android.log('vehicle data error: ' + e); } },
+  onDrivingState: function(on){ state.uxConnected = true; setDrive(!!on); refreshLiveBadge(liveCount); },
+  onUxUnavailable: function(){ state.uxConnected = false; refreshLiveBadge(liveCount); }
+};
+
+renderAll();
+refreshLiveBadge(0);
+fit();
+
+/* ================= 3D ================= */
+function fail(){ $('fallback').hidden = false; $('hint').hidden = true; $('scanText').textContent = '3D 화면 없이 목록만 보여 드려요'; $('scanline').classList.add('done'); if (Android && Android.ready) Android.ready(); }
+if (!window.THREE || !THREE.OrbitControls){ fail(); return; }
+var canvas = $('view'), stage = $('stage');
+var renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:true, alpha:true, powerPreference:'high-performance' });
+} catch (e) { fail(); return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2) * scale);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
+renderer.setClearColor(0x000000, 0);
+
+var V3 = THREE.Vector3;
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+var controls = new THREE.OrbitControls(camera, canvas);
+controls.target.set(0, 0.7, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.enablePan = false;
+controls.rotateSpeed = 0.7;
+controls.minDistance = 3.0; controls.maxDistance = 15;
+controls.minPolarAngle = 0.22; controls.maxPolarAngle = 1.5;
+controls.autoRotate = !reduce; controls.autoRotateSpeed = 0.5;
+
+/* --- environment for metal reflections --- */
+(function(){
+  var pm = new THREE.PMREMGenerator(renderer);
+  var env = new THREE.Scene();
+  var sg = new THREE.SphereGeometry(30, 32, 16);
+  var cols = [], p = sg.attributes.position;
+  for (var i = 0; i < p.count; i++){
+    var h = p.getY(i) / 30, k = Math.max(0, Math.min(1, (h + 0.25) / 1.1));
+    cols.push(0.02 + 0.19 * k, 0.02 + 0.19 * k, 0.02 + 0.195 * k);
+  }
+  sg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  env.add(new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide })));
+  function box(w, h, x, y, z, s){
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color:new THREE.Color(s, s, s), side:THREE.DoubleSide }));
+    m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m);
+  }
+  box(16, 3, 0, 14, 0, 3.2);
+  box(7, 7, 12, 5, 8, 2.2);
+  box(8, 4, -12, 4, -6, 1.5);
+  box(10, 2, 0, 2.5, -14, 1.1);
+  box(10, 2, 0, 2.5, 14, 0.9);
+  scene.environment = pm.fromScene(env, 0.035).texture;
+})();
+scene.add(new THREE.HemisphereLight(0xdadcdf, 0x0c0c0d, 0.3));
+var key = new THREE.DirectionalLight(0xffffff, 0.95); key.position.set(4, 7, 5); scene.add(key);
+var rimL = new THREE.DirectionalLight(0xd4d8dd, 0.85); rimL.position.set(-6, 3, -5); scene.add(rimL);
+
+/* --- canvas textures --- */
+function radial(stops, size){
+  size = size || 256;
+  var c = document.createElement('canvas'); c.width = c.height = size;
+  var g = c.getContext('2d'), gr = g.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  stops.forEach(function(s){ gr.addColorStop(s[0], s[1]); });
+  g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+var PIN_TEX = (function(){
+  var c = document.createElement('canvas'); c.width = c.height = 128; var g = c.getContext('2d');
+  var gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  g.lineWidth = 9; g.strokeStyle = '#fff'; g.beginPath(); g.arc(64, 64, 34, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(64, 64, 15, 0, Math.PI * 2); g.fill();
+  var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+})();
+var HALO_TEX = radial([[0,'rgba(255,255,255,.06)'],[0.3,'rgba(255,255,255,.16)'],[0.52,'rgba(255,255,255,.5)'],[0.72,'rgba(255,255,255,.14)'],[1,'rgba(255,255,255,0)']], 128);
+
+/* --- floor --- */
+var floor = new THREE.Mesh(new THREE.CircleGeometry(5.6, 96), new THREE.MeshBasicMaterial({ map:radial([[0,'rgba(190,192,196,.2)'],[0.42,'rgba(110,112,116,.07)'],[1,'rgba(0,0,0,0)']]), transparent:true, depthWrite:false }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+var shadow = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 2.9), new THREE.MeshBasicMaterial({ map:radial([[0,'rgba(0,0,0,.8)'],[0.55,'rgba(0,0,0,.4)'],[1,'rgba(0,0,0,0)']]), transparent:true, depthWrite:false }));
+shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.003; scene.add(shadow);
+(function(){
+  [3.1, 3.9, 4.8].forEach(function(r, i){
+    var pts = []; for (var k = 0; k <= 160; k++){ var a = k / 160 * Math.PI * 2; pts.push(new V3(Math.cos(a) * r, 0.004, Math.sin(a) * r)); }
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color:0x8e9196, transparent:true, opacity:0.26 - i * 0.07, depthWrite:false })));
+  });
+  var tp = [];
+  for (var k = 0; k < 72; k++){
+    var a = k / 72 * Math.PI * 2, r0 = 3.9, r1 = k % 9 === 0 ? 4.12 : 4.0;
+    tp.push(new V3(Math.cos(a) * r0, 0.004, Math.sin(a) * r0), new V3(Math.cos(a) * r1, 0.004, Math.sin(a) * r1));
+  }
+  scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(tp), new THREE.LineBasicMaterial({ color:0x8e9196, transparent:true, opacity:0.3, depthWrite:false })));
+})();
+
+/* ================= body shell (lofted sections) ================= */
+var L2 = 2.3, END_R = 0.17, NB = 6, NT = 4.6;
+var TOP = [[-2.30,0.72],[-2.26,1.00],[-2.19,1.22],[-2.07,1.42],[-1.88,1.54],[-1.40,1.585],[-0.40,1.60],[0.45,1.585],[0.80,1.53],[1.12,1.33],[1.46,1.07],[1.76,0.985],[2.04,0.93],[2.22,0.85],[2.30,0.68]];
+var BOT = [[-2.30,0.50],[-2.22,0.37],[-2.02,0.30],[-1.60,0.275],[1.60,0.275],[2.02,0.30],[2.22,0.35],[2.30,0.47]];
+var WID = [[-2.30,0.86],[-2.05,0.915],[-1.20,0.94],[1.20,0.94],[2.05,0.915],[2.30,0.85]];
+function curve(pts, x){
+  var n = pts.length;
+  if (x <= pts[0][0]) return pts[0][1];
+  if (x >= pts[n-1][0]) return pts[n-1][1];
+  var i = 0; while (i < n - 2 && x > pts[i+1][0]) i++;
+  var p0 = pts[Math.max(i-1,0)], p1 = pts[i], p2 = pts[i+1], p3 = pts[Math.min(i+2,n-1)];
+  var h = p2[0] - p1[0], t = (x - p1[0]) / h;
+  var m1 = (p2[1] - p0[1]) / (p2[0] - p0[0]) * h, m2 = (p3[1] - p1[1]) / (p3[0] - p1[0]) * h;
+  var t2 = t * t, t3 = t2 * t;
+  return (2*t3 - 3*t2 + 1) * p1[1] + (t3 - 2*t2 + t) * m1 + (-2*t3 + 3*t2) * p2[1] + (t3 - t2) * m2;
+}
+function belt(x){ return 1.012 - 0.016 * x; }
+function endScale(x){ var d = Math.abs(x) - (L2 - END_R); if (d <= 0) return 1; var u = Math.min(d / END_R, 1); return Math.sqrt(Math.max(0, 1 - u * u)); }
+function halfWidthAt(x, y){
+  var hw = curve(WID, x) * endScale(x), bl = belt(x);
+  if (y > bl){ var s = Math.min(1, (y - bl) / 0.56), ss = s * s * (3 - 2 * s); hw *= 1 - 0.19 * ss; }
+  return hw;
+}
+function surfaceZ(x, y){
+  var t = curve(TOP, x), b = curve(BOT, x), yc = (t + b) / 2, hh = (t - b) / 2;
+  var yN = (y - yc) / hh; if (Math.abs(yN) > 0.999) return null;
+  var n = yN < 0 ? NB : NT;
+  return Math.pow(1 - Math.pow(Math.abs(yN), n), 1 / n) * halfWidthAt(x, y);
+}
+function buildShell(){
+  var NX = 200, K = 44, R = 2 * K;
+  var pos = new Float32Array((NX + 1) * R * 3), idx = [];
+  for (var i = 0; i <= NX; i++){
+    var x = -L2 * Math.cos(Math.PI * i / NX);
+    var t = curve(TOP, x), b = curve(BOT, x), yc = (t + b) / 2, hh = (t - b) / 2;
+    for (var j = 0; j < R; j++){
+      var phi, side;
+      if (j <= K){ phi = -Math.PI / 2 + Math.PI * j / K; side = 1; } else { phi = Math.PI / 2 - Math.PI * (j - K) / K; side = -1; }
+      var yN = Math.sin(phi), n = yN < 0 ? NB : NT;
+      var zN = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(yN), n)), 1 / n);
+      var y = yc + yN * hh;
+      var k = (i * R + j) * 3;
+      pos[k] = x; pos[k+1] = y; pos[k+2] = side * zN * halfWidthAt(x, y);
+    }
+  }
+  for (var i2 = 0; i2 < NX; i2++){
+    for (var j2 = 0; j2 < R; j2++){
+      var a = i2 * R + j2, bb = i2 * R + (j2 + 1) % R, c = (i2 + 1) * R + j2, d = (i2 + 1) * R + (j2 + 1) % R;
+      idx.push(a, c, bb, bb, c, d);
+    }
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+var shellGeo = buildShell();
+
+var ARCH_GLSL = [
+  'bool inArch(vec3 w){',
+  '  vec2 p = w.xy;',
+  '  return (distance(p, vec2(1.45, 0.36)) < 0.445 || distance(p, vec2(-1.45, 0.36)) < 0.445) && abs(w.z) > 0.25;',
+  '}'
+].join('\n');
+
+var car = new THREE.Group(); scene.add(car);
+
+/* X-ray shell: additive fresnel glow with height contours and a scan band */
+var xrayMat = new THREE.ShaderMaterial({
+  uniforms:{ uColor:{ value:new THREE.Color(0x9aa0a8) }, uEdge:{ value:new THREE.Color(0xf2f3f5) }, uScan:{ value:-10 }, uGain:{ value:1 } },
+  vertexShader:[
+    'varying vec3 vN; varying vec3 vW;',
+    'void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }'
+  ].join('\n'),
+  fragmentShader:[
+    'uniform vec3 uColor; uniform vec3 uEdge; uniform float uScan; uniform float uGain;',
+    'varying vec3 vN; varying vec3 vW;',
+    ARCH_GLSL,
+    'void main(){',
+    '  if (inArch(vW)) discard;',
+    '  vec3 V = normalize(cameraPosition - vW);',
+    '  float ndv = abs(dot(normalize(vN), V));',
+    '  float fres = pow(1.0 - ndv, 2.3);',
+    '  float cy = vW.y * 12.0;',
+    '  float fw = fwidth(cy);',
+    '  float dl = abs(fract(cy - 0.5) - 0.5);',
+    '  float line = 1.0 - smoothstep(0.0, fw * 1.4, dl);',
+    '  float scan = exp(-pow((vW.x - uScan) * 6.0, 2.0));',
+    '  vec3 col = uColor * (0.07 + fres * 1.15) + uEdge * line * (0.035 + 0.09 * fres) + uEdge * scan * 0.75;',
+    '  gl_FragColor = vec4(col * uGain, 1.0);',
+    '}'
+  ].join('\n'),
+  transparent:true, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending,
+  extensions:{ derivatives:true }
+});
+var xrayShell = new THREE.Mesh(shellGeo, xrayMat); xrayShell.renderOrder = 6; car.add(xrayShell);
+
+/* Exterior shell: clear-coated paint with shader-cut glass, cladding, lamps and wheel arches */
+var MASK_GLSL = [
+  'float glassMask(vec3 w, vec3 n){',
+  '  float bl = 1.012 - 0.016 * w.x;',
+  '  float above = smoothstep(bl + 0.006, bl + 0.02, w.y);',
+  '  float cabin = smoothstep(-2.13, -2.11, w.x) * (1.0 - smoothstep(1.44, 1.46, w.x));',
+  '  float side = smoothstep(0.80, 0.86, abs(n.z)) * smoothstep(-1.48, -1.46, w.x) * (1.0 - smoothstep(1.0, 1.02, w.x));',
+  '  side *= smoothstep(0.045, 0.055, abs(w.x + 0.22));',
+  '  float front = smoothstep(0.42, 0.5, n.x);',
+  '  float rear = smoothstep(0.42, 0.5, -n.x);',
+  '  float roof = smoothstep(0.9, 0.95, n.y);',
+  '  return above * cabin * max(max(side, front), max(rear, roof));',
+  '}',
+  'vec3 lampGlow(vec3 w){',
+  '  float az = abs(w.z);',
+  '  float f = step(2.15, w.x) * smoothstep(0.735, 0.745, w.y) * (1.0 - smoothstep(0.785, 0.795, w.y)) * step(0.42, az) * step(az, 0.8);',
+  '  f *= step(0.28, fract(w.z * 32.0));',
+  '  float r = step(w.x, -2.17) * smoothstep(0.985, 0.995, w.y) * (1.0 - smoothstep(1.02, 1.03, w.y)) * step(az, 0.8);',
+  '  return vec3(0.85, 0.93, 1.0) * f * 2.2 + vec3(1.0, 0.1, 0.13) * r * 1.6;',
+  '}'
+].join('\n');
+function makePaint(side){
+  var m = new THREE.MeshPhysicalMaterial({ color:0x3c3f43, metalness:0.6, roughness:0.32, clearcoat:1, clearcoatRoughness:0.06, transparent:true, side:side, envMapIntensity:0.8 });
+  m.onBeforeCompile = function(sh){
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;\n' + ARCH_GLSL + '\n' + MASK_GLSL)
+      .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (inArch(vWP)) discard;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat gm = glassMask(vWP, normalize(vWN));\nfloat clad = (1.0 - gm) * (1.0 - smoothstep(0.40, 0.43, vWP.y));\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.03, 0.04, 0.05), gm);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.045, 0.05, 0.055), clad);\ndiffuseColor.a = mix(1.0, 0.42, gm);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.05, gm);\nroughnessFactor = mix(roughnessFactor, 0.8, clad);')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.0, max(gm, clad));')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += lampGlow(vWP);')
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef CLEARCOAT\nmaterial.clearcoat *= (1.0 - clad);\n#endif');
+  };
+  m.customProgramCacheKey = function(){ return 'car-paint-v1'; };
+  return m;
+}
+var paintBack = new THREE.Mesh(shellGeo, makePaint(THREE.BackSide)); paintBack.renderOrder = 3; car.add(paintBack);
+var paintFront = new THREE.Mesh(shellGeo, makePaint(THREE.FrontSide)); paintFront.renderOrder = 4; car.add(paintFront);
+
+/* feature lines on the shell (x-ray only) */
+var lineGroup = new THREE.Group(); car.add(lineGroup);
+(function(){
+  var mat = new THREE.LineBasicMaterial({ color:0xcdd0d4, transparent:true, opacity:0.42, blending:THREE.AdditiveBlending, depthWrite:false });
+  function trace(fn, n, s){
+    var pts = [];
+    function flush(){ if (pts.length > 1) lineGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat)); pts = []; }
+    for (var k = 0; k <= n; k++){
+      var p = fn(k / n), z = surfaceZ(p[0], p[1]);
+      var archHit = (Math.hypot(p[0] - 1.45, p[1] - 0.36) < 0.43 || Math.hypot(p[0] + 1.45, p[1] - 0.36) < 0.43);
+      if (z === null || archHit){ flush(); continue; }
+      pts.push(new V3(p[0], p[1], s * z * 1.004));
+    }
+    flush();
+  }
+  function lerp(a, b, t){ return a + (b - a) * t; }
+  [1, -1].forEach(function(s){
+    trace(function(t){ var x = lerp(-2.1, 1.9, t); return [x, belt(x) + 0.003]; }, 120, s);
+    trace(function(t){ var x = lerp(1.01, 0.70, t); return [x, lerp(belt(1.01) + 0.01, curve(TOP, 0.70) - 0.09, t)]; }, 24, s);
+    trace(function(t){ var x = lerp(0.70, -1.46, t); return [x, curve(TOP, x) - 0.09]; }, 60, s);
+    trace(function(t){ return [-1.46, lerp(curve(TOP, -1.46) - 0.09, belt(-1.46) + 0.01, t)]; }, 20, s);
+    [-0.17, -0.27].forEach(function(x){ trace(function(t){ return [x, lerp(belt(x) + 0.01, curve(TOP, x) - 0.09, t)]; }, 20, s); });
+    trace(function(t){ return [1.0, lerp(0.34, belt(1.0), t)]; }, 24, s);
+    trace(function(t){ return [-0.22, lerp(0.32, belt(-0.22), t)]; }, 24, s);
+    trace(function(t){ return [-1.46, lerp(belt(-1.46), 0.82, t)]; }, 12, s);
+    trace(function(t){ return [lerp(-1.0, 1.0, t), 0.43]; }, 40, s);
+    [1.45, -1.45].forEach(function(cx){
+      var pts = [];
+      for (var k = 0; k <= 40; k++){
+        var a = k / 40 * Math.PI, x = cx + Math.cos(a) * 0.45, y = 0.36 + Math.sin(a) * 0.45, z = surfaceZ(x, y);
+        if (z !== null) pts.push(new V3(x, y, s * z * 1.004));
+      }
+      if (pts.length > 1) lineGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+    });
+  });
+})();
+
+/* ================= materials ================= */
+var MAT = {
+  chrome: new THREE.MeshStandardMaterial({ color:0xd0d2d5, metalness:1, roughness:0.22, envMapIntensity:0.85 }),
+  steel:  new THREE.MeshStandardMaterial({ color:0x93969a, metalness:0.95, roughness:0.36 }),
+  graph:  new THREE.MeshStandardMaterial({ color:0x2f3236, metalness:0.7, roughness:0.45, envMapIntensity:0.7 }),
+  trim:   new THREE.MeshStandardMaterial({ color:0x26282b, metalness:0.1, roughness:0.75, envMapIntensity:0.45 }),
+  rubber: new THREE.MeshStandardMaterial({ color:0x2c2e31, metalness:0, roughness:0.82, side:THREE.DoubleSide }),
+  screen: new THREE.MeshStandardMaterial({ color:0x0c0d0f, emissive:0x8a9099, emissiveIntensity:0.6, metalness:0.2, roughness:0.25 }),
+  lampW:  new THREE.MeshBasicMaterial({ color:0xeaf3ff }),
+  lampR:  new THREE.MeshBasicMaterial({ color:0xff2b3a }),
+  liner:  new THREE.MeshStandardMaterial({ color:0x0b0e12, metalness:0, roughness:0.95, side:THREE.DoubleSide })
+};
+function im(id, base){ var m = base.clone(); m.userData.base = m.color.clone(); byId[id].mats.push(m); return m; }
+var pickables = [];
+function add(parent, geo, mat, pos, rot, id){
+  var m = new THREE.Mesh(geo, mat);
+  if (pos) m.position.set(pos[0], pos[1], pos[2]);
+  if (rot) m.rotation.set(rot[0], rot[1], rot[2]);
+  parent.add(m);
+  if (id){ m.userData.item = id; byId[id].meshes.push(m); pickables.push(m); }
+  return m;
+}
+function rbox(w, h, d, r){
+  r = Math.min(r, w / 2 - 0.002, h / 2 - 0.002, d / 2 - 0.002);
+  var s = new THREE.Shape(), e = 0.00001, rr = r - e;
+  s.absarc(e, e, e, -Math.PI / 2, -Math.PI, true);
+  s.absarc(e, h - rr * 2, e, Math.PI, Math.PI / 2, true);
+  s.absarc(w - rr * 2, h - rr * 2, e, Math.PI / 2, 0, true);
+  s.absarc(w - rr * 2, e, e, 0, -Math.PI / 2, true);
+  var g = new THREE.ExtrudeGeometry(s, { depth:d - r * 2, bevelEnabled:true, bevelSegments:3, steps:1, bevelSize:rr, bevelThickness:r, curveSegments:3 });
+  g.center();
+  return g;
+}
+
+/* ================= structure: chassis + safety cage ================= */
+var structure = new THREE.Group(); car.add(structure);
+[-1, 1].forEach(function(s){
+  add(structure, rbox(2.0, 0.09, 0.09, 0.02), MAT.chrome, [0, 0.33, s * 0.79]);
+  add(structure, rbox(1.2, 0.07, 0.07, 0.015), MAT.chrome, [1.62, 0.42, s * 0.45]);
+  add(structure, rbox(1.2, 0.07, 0.07, 0.015), MAT.chrome, [-1.62, 0.42, s * 0.5]);
+});
+add(structure, rbox(0.07, 0.09, 1.52, 0.015), MAT.chrome, [2.16, 0.5, 0]);
+add(structure, rbox(0.07, 0.09, 1.56, 0.015), MAT.chrome, [-2.16, 0.5, 0]);
+[1.0, -1.0].forEach(function(x){ add(structure, rbox(0.07, 0.07, 1.6, 0.015), MAT.chrome, [x, 0.34, 0]); });
+add(structure, rbox(0.05, 0.36, 1.12, 0.012), MAT.graph, [2.11, 0.56, 0]);
+(function(){
+  var r = 0.016;
+  function tube(pts){ if (pts.length < 2) return; structure.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(8, pts.length * 3), r, 6, false), MAT.chrome)); }
+  function inner(x, y, s){ var z = surfaceZ(x, y); return z === null ? null : new V3(x, y - 0.012, s * z * 0.955); }
+  function path(fn, n, s){ var pts = []; for (var k = 0; k <= n; k++){ var p = fn(k / n), q = inner(p[0], p[1], s); if (q) pts.push(q); } tube(pts); }
+  function lerp(a, b, t){ return a + (b - a) * t; }
+  [1, -1].forEach(function(s){
+    path(function(t){ var x = lerp(1.42, 0.72, t); return [x, lerp(belt(1.42) + 0.02, curve(TOP, 0.72) - 0.07, t)]; }, 14, s);
+    path(function(t){ var x = lerp(0.72, -1.86, t); return [x, curve(TOP, x) - 0.07]; }, 30, s);
+    path(function(t){ return [-0.22, lerp(0.42, curve(TOP, -0.22) - 0.07, t)]; }, 18, s);
+    path(function(t){ var x = lerp(-1.5, -1.86, t); return [x, lerp(belt(-1.5) + 0.02, curve(TOP, -1.86) - 0.07, t)]; }, 12, s);
+    path(function(t){ var x = lerp(-2.05, 1.40, t); return [x, belt(x) - 0.02]; }, 40, s);
+  });
+  [0.72, -0.22, -1.86].forEach(function(x){
+    var t = curve(TOP, x), b = curve(BOT, x), yc = (t + b) / 2, hh = (t - b) / 2, pts = [];
+    for (var k = 0; k <= 24; k++){
+      var phi = lerp(-0.6, 0.6, k / 24) + Math.PI / 2;
+      var yN = Math.sin(phi), zS = Math.cos(phi) < 0 ? -1 : 1;
+      var zN = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(yN), NT)), 1 / NT);
+      var y = yc + yN * hh - 0.07 * (1 - Math.abs(Math.cos(phi)));
+      pts.push(new V3(x, y - 0.02, -zS * zN * halfWidthAt(x, y) * 0.94));
+    }
+    tube(pts);
+  });
+})();
+
+/* ================= wheels, brakes, suspension ================= */
+var TIRE_GEO = (function(){
+  var pts = [], rIn = 0.245, rOut = 0.36, hw = 0.122, c = 0.04;
+  pts.push(new THREE.Vector2(rIn, -hw), new THREE.Vector2(rOut - c, -hw));
+  for (var k = 1; k <= 6; k++){ var a = -Math.PI / 2 + k / 6 * Math.PI / 2; pts.push(new THREE.Vector2(rOut - c + Math.cos(a) * c, -hw + c + Math.sin(a) * c)); }
+  for (var k2 = 0; k2 <= 6; k2++){ var a2 = k2 / 6 * Math.PI / 2; pts.push(new THREE.Vector2(rOut - c + Math.cos(a2) * c, hw - c + Math.sin(a2) * c)); }
+  pts.push(new THREE.Vector2(rIn, hw));
+  var g = new THREE.LatheGeometry(pts, 56); g.rotateX(Math.PI / 2); return g;
+})();
+var CAL_GEO = new THREE.TorusGeometry(0.175, 0.038, 8, 10, 0.8);
+var DISC_GEO = new THREE.CylinderGeometry(0.18, 0.18, 0.024, 40);
+var BARREL_GEO = new THREE.CylinderGeometry(0.245, 0.245, 0.2, 40, 1, true);
+var LIP_GEO = new THREE.TorusGeometry(0.243, 0.012, 8, 48);
+var HUB_GEO = new THREE.CylinderGeometry(0.055, 0.065, 0.06, 20);
+var SPOKE_GEO = new THREE.BoxGeometry(0.19, 0.045, 0.025);
+var SPRING_GEO = (function(){
+  class Helix extends THREE.Curve {
+    getPoint(t, target){ target = target || new V3(); var a = t * 6.5 * Math.PI * 2; return target.set(Math.cos(a) * 0.066, t * 0.3, Math.sin(a) * 0.066); }
+  }
+  return new THREE.TubeGeometry(new Helix(), 180, 0.011, 6, false);
+})();
+var linerGroup = new THREE.Group(); car.add(linerGroup);
+var mats = {
+  brakeF: im('brakeF', MAT.steel), brakeR: im('brakeR', MAT.steel),
+  discF: im('brakeF', MAT.graph), discR: im('brakeR', MAT.graph),
+  susp: MAT.chrome
+};
+[[1.45, 1], [1.45, -1], [-1.45, 1], [-1.45, -1]].forEach(function(w){
+  var x = w[0], s = w[1], front = x > 0;
+  var g = new THREE.Group(); g.position.set(x, 0.36, s * 0.8); car.add(g);
+  var inner = new THREE.Group(); if (s < 0) inner.rotation.y = Math.PI; g.add(inner);
+  var wcode = (front ? 'F' : 'R') + (s < 0 ? 'L' : 'R');
+  var tmat = im('tireLow', MAT.rubber); tmat.userData.wheel = wcode;
+  var tire = add(inner, TIRE_GEO, tmat, null, null, 'tireLow');
+  byId.tireLow.anchorObjs.push(tire); byId.tireLow.anchorWheel.push(wcode);
+  var rim = new THREE.Group(); inner.add(rim);
+  add(rim, BARREL_GEO, MAT.chrome, null, [Math.PI / 2, 0, 0]);
+  add(rim, LIP_GEO, MAT.chrome, [0, 0, 0.1]);
+  add(rim, HUB_GEO, MAT.chrome, [0, 0, 0.075], [Math.PI / 2, 0, 0]);
+  for (var k = 0; k < 5; k++){ var a = k / 5 * Math.PI * 2; add(rim, SPOKE_GEO, MAT.chrome, [Math.cos(a) * 0.145, Math.sin(a) * 0.145, 0.085], [0, 0, a]); }
+  var ang = (s > 0 ? 2.36 : 0.785) - 0.4;
+  var bid = front ? 'brakeF' : 'brakeR';
+  add(inner, DISC_GEO, front ? mats.discF : mats.discR, [0, 0, -0.035], [Math.PI / 2, 0, 0], bid);
+  var cal = add(inner, CAL_GEO, front ? mats.brakeF : mats.brakeR, [0, 0, -0.035], [0, 0, ang], bid);
+  byId[bid].anchorObjs.push(cal);
+  /* suspension */
+  add(car, SPRING_GEO, mats.susp, [x, 0.44, s * 0.56]);
+  add(car, new THREE.CylinderGeometry(0.022, 0.022, 0.42, 12), mats.susp, [x, 0.6, s * 0.56]);
+  add(car, new THREE.CylinderGeometry(0.075, 0.075, 0.03, 20), mats.susp, [x, 0.77, s * 0.56]);
+  add(car, rbox(0.06, 0.03, 0.4, 0.01), MAT.steel, [x, 0.31, s * 0.5]);
+  add(car, rbox(0.05, 0.03, 0.3, 0.01), MAT.steel, [x, 0.62, s * 0.62]);
+  add(car, new THREE.CylinderGeometry(0.024, 0.024, 0.46, 10), MAT.chrome, [x, 0.38, s * 0.47], [Math.PI / 2, 0, 0]);
+  /* wheel-well liner, exterior view only */
+  var lg = new THREE.CylinderGeometry(0.445, 0.445, 0.34, 32, 1, true, Math.PI / 2, Math.PI); lg.rotateX(Math.PI / 2);
+  add(linerGroup, lg, MAT.liner, [x, 0.36, s * 0.76]);
+});
+
+/* ================= powertrain & battery ================= */
+var hvCase = im('hvBattery', MAT.graph), hvCell = im('hvBattery', new THREE.MeshStandardMaterial({ color:0x2b2e32, metalness:0.3, roughness:0.5, envMapIntensity:0.45 }));
+var pack = add(car, rbox(2.15, 0.1, 1.42, 0.03), hvCase, [-0.05, 0.25, 0], null, 'hvBattery');
+byId.hvBattery.anchorObjs.push(pack);
+var cellGeo = rbox(0.225, 0.05, 0.4, 0.012);
+for (var ci = 0; ci < 8; ci++) for (var ck = 0; ck < 3; ck++) add(car, cellGeo, hvCell, [-0.99 + ci * 0.268, 0.325, -0.45 + ck * 0.45], null, 'hvBattery');
+
+var motorMat = MAT.steel, invMat = MAT.graph, redMat = im('reducer', MAT.graph);
+[1.45, -1.45].forEach(function(x){
+  var g = new THREE.Group(); g.position.set(x, 0.4, 0); car.add(g);
+  var body = add(g, new THREE.CylinderGeometry(0.15, 0.15, 0.34, 32), motorMat, [0, 0, -0.08], [Math.PI / 2, 0, 0]);
+  for (var k = 0; k < 5; k++) add(g, new THREE.TorusGeometry(0.152, 0.008, 6, 32), motorMat, [0, 0, -0.22 + k * 0.07]);
+  add(g, rbox(0.34, 0.09, 0.36, 0.02), invMat, [0, 0.2, -0.06]);
+  var gb = add(g, rbox(0.3, 0.28, 0.18, 0.03), redMat, [0, -0.01, 0.17], null, 'reducer');
+  byId.reducer.anchorObjs.push(gb);
+});
+
+/* front compartment */
+var wsM = im('washer', new THREE.MeshStandardMaterial({ color:0x5d7f9e, metalness:0.1, roughness:0.3 }));
+var wtank = add(car, rbox(0.26, 0.2, 0.17, 0.04), wsM, [1.9, 0.64, 0.42], null, 'washer');
+add(car, new THREE.CylinderGeometry(0.035, 0.035, 0.035, 16), wsM, [1.86, 0.76, 0.42], null, 'washer');
+byId.washer.anchorObjs.push(wtank);
+var bfM = im('brakeFluid', new THREE.MeshStandardMaterial({ color:0x8c8778, metalness:0.1, roughness:0.25 }));
+var res = add(car, new THREE.CylinderGeometry(0.06, 0.06, 0.13, 24), bfM, [1.66, 0.8, -0.5], null, 'brakeFluid');
+add(car, new THREE.CylinderGeometry(0.03, 0.03, 0.03, 16), bfM, [1.66, 0.88, -0.5], null, 'brakeFluid');
+byId.brakeFluid.anchorObjs.push(res);
+
+/* cabin */
+add(car, rbox(0.42, 0.2, 1.62, 0.05), MAT.trim, [1.12, 0.94, 0]);
+add(car, rbox(0.34, 0.26, 0.58, 0.03), MAT.graph, [1.2, 0.76, 0.12]);
+add(car, rbox(0.014, 0.13, 0.84, 0.006), MAT.screen, [0.9, 1.1, -0.2], [0, 0, -0.12]);
+var filtM = im('cabinFilter', new THREE.MeshStandardMaterial({ color:0x8a96a3, metalness:0.05, roughness:0.7 }));
+var filt = add(car, rbox(0.24, 0.04, 0.22, 0.008), filtM, [1.04, 0.74, 0.38], null, 'cabinFilter');
+for (var fk = 0; fk < 7; fk++) add(car, new THREE.BoxGeometry(0.005, 0.03, 0.2), filtM, [0.94 + fk * 0.033, 0.77, 0.38], null, 'cabinFilter');
+byId.cabinFilter.anchorObjs.push(filt);
+(function(){
+  var sw = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.02, 10, 40), MAT.trim);
+  sw.position.set(0.66, 0.99, -0.38); sw.rotation.set(0, Math.PI / 2, 0); sw.rotateX(-0.38); car.add(sw);
+  add(car, new THREE.CylinderGeometry(0.022, 0.022, 0.32, 10), MAT.trim, [0.8, 0.95, -0.38], [0, 0, 1.15]);
+})();
+function seat(x, z, w, heads){
+  add(car, rbox(0.5, 0.11, w, 0.04), MAT.trim, [x, 0.55, z]);
+  var back = add(car, rbox(0.11, 0.62, w, 0.04), MAT.trim, [x - 0.27, 0.86, z], [0, 0, 0.22]);
+  heads.forEach(function(hz){ add(car, rbox(0.08, 0.15, 0.26, 0.03), MAT.trim, [x - 0.36, 1.26, z + hz], [0, 0, 0.22]); });
+  return back;
+}
+seat(0.18, 0.4, 0.5, [0]); seat(0.18, -0.4, 0.5, [0]); seat(-0.82, 0, 1.32, [-0.4, 0.4]);
+var wipM = im('wiper', MAT.graph);
+var wp1 = add(car, new THREE.BoxGeometry(0.03, 0.014, 0.56), wipM, [1.4, 1.085, -0.33], [0, 0.12, 0.62], 'wiper');
+add(car, new THREE.BoxGeometry(0.03, 0.014, 0.5), wipM, [1.4, 1.085, 0.27], [0, 0.12, 0.62], 'wiper');
+byId.wiper.anchorObjs.push(wp1);
+
+/* lamps (seen in x-ray) */
+[-1, 1].forEach(function(s){
+  for (var r = 0; r < 2; r++) for (var c = 0; c < 7; c++) add(car, new THREE.BoxGeometry(0.02, 0.016, 0.03), MAT.lampW, [2.19, 0.752 + r * 0.026, s * (0.46 + c * 0.046)]);
+});
+add(car, new THREE.BoxGeometry(0.02, 0.024, 1.48), MAT.lampR, [-2.2, 1.005, 0]);
+
+/* ================= halos + anchors ================= */
+scene.updateMatrixWorld(true);
+ITEMS.forEach(function(it){
+  it.anchors = it.anchorObjs.map(function(o){ return new THREE.Box3().setFromObject(o).getCenter(new V3()); });
+  if (!it.anchors.length) it.anchors = [new V3(0, 0.7, 0)];
+  it.revealX = Math.max.apply(null, it.anchors.map(function(a){ return a.x; }));
+  it.halos = it.anchors.map(function(a){
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:HALO_TEX, color:0xffffff, transparent:true, depthTest:false, depthWrite:false, blending:THREE.AdditiveBlending }));
+    sp.position.copy(a); sp.scale.setScalar(it.halo); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp;
+  });
+});
+
+/* ================= scan sweep ================= */
+var scanPlane = (function(){
+  var c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  var g = c.getContext('2d');
+  var gh = g.createLinearGradient(0, 0, 128, 0);
+  gh.addColorStop(0, 'rgba(255,255,255,0)'); gh.addColorStop(0.15, 'rgba(255,255,255,.9)'); gh.addColorStop(0.85, 'rgba(255,255,255,.9)'); gh.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gh; g.fillRect(0, 0, 128, 128);
+  g.globalCompositeOperation = 'destination-in';
+  var gv = g.createLinearGradient(0, 0, 0, 128);
+  gv.addColorStop(0, 'rgba(255,255,255,0)'); gv.addColorStop(1, 'rgba(255,255,255,1)');
+  g.fillStyle = gv; g.fillRect(0, 0, 128, 128);
+  var tex = new THREE.CanvasTexture(c);
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.9), new THREE.MeshBasicMaterial({ map:tex, color:0xe8eaed, transparent:true, opacity:0.2, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide }));
+  m.rotation.y = Math.PI / 2; m.position.y = 0.95; m.visible = false; m.renderOrder = 8; scene.add(m);
+  return m;
+})();
+var scan = { active:!reduce, t0:performance.now() + 500, dur:2600, x:-10 };
+
+/* ================= modes ================= */
+function setMode(m){
+  state.mode = m;
+  xrayShell.visible = m === 'xray';
+  lineGroup.visible = m === 'xray';
+  paintBack.visible = paintFront.visible = linerGroup.visible = m === 'exterior';
+  structure.visible = m !== 'exterior';
+  document.querySelectorAll('.modes button').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.mode === m ? 'true' : 'false'); });
+}
+document.querySelectorAll('.modes button').forEach(function(b){ b.addEventListener('click', function(){ setMode(b.dataset.mode); hideHint(); }); });
+setMode('xray');
+
+/* ================= camera fit, focus tween ================= */
+var DEFAULT_DIR = new V3(0.7, 0.3, 0.66).normalize();
+var tween = null;
+function fitDistance(){ var tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect; return THREE.MathUtils.clamp(2.75 / tanH, 6.9, 13.5); }
+function resize(){
+  var w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2) * scale);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  controls.rotateSpeed = 0.7 / Math.max(scale, 0.2);
+  if (!state.interacted && !tween){ camera.position.copy(controls.target).addScaledVector(DEFAULT_DIR, fitDistance()); }
+}
+onScale = resize;
+driveHook = function(on){ if (!on) resize(); };
+function easeIO(t){ return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+var WHEEL_VIEW = { FL:[0.55,0.32,-1], FR:[0.55,0.32,1], RL:[-0.55,0.32,-1], RR:[-0.55,0.32,1] };
+function activeAnchors(it){
+  if (it.id === 'tireLow' && it.lowWheels && it.lowWheels.length){
+    var list = [];
+    it.anchors.forEach(function(a, i){ if (it.lowWheels.indexOf(it.anchorWheel[i]) >= 0) list.push(a); });
+    if (list.length) return list;
+  }
+  return it.anchors;
+}
+focusHook = function(it){
+  if (state.drive || state.compact) return;
+  var view = it.view;
+  if (it.id === 'tireLow' && it.lowWheels && it.lowWheels.length) view = WHEEL_VIEW[it.lowWheels[0]] || view;
+  var cands = activeAnchors(it);
+  var dir0 = new V3().fromArray(view).normalize();
+  var best = cands[0], bd = Infinity;
+  cands.forEach(function(p){ var d = -p.dot(dir0); if (d < bd){ bd = d; best = p; } });
+  var a = best.clone();
+  var target = new V3(a.x * 0.85, THREE.MathUtils.clamp(a.y, 0.45, 1.05), a.z * 0.45);
+  var dist = (it.dist + 1.6) * Math.max(1, 1.3 / Math.max(camera.aspect, 0.55));
+  var fromOff = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+  var toOff = new THREE.Spherical().setFromVector3(dir0.clone().multiplyScalar(dist));
+  var dT = toOff.theta - fromOff.theta; while (dT > Math.PI) dT -= Math.PI * 2; while (dT < -Math.PI) dT += Math.PI * 2;
+  tween = { t0:performance.now(), dur:reduce ? 1 : 1000, fromT:controls.target.clone(), toT:target, from:fromOff, dTheta:dT, toPhi:toOff.phi, toR:toOff.radius };
+  controls.autoRotate = false;
+  state.interacted = true;
+};
+controls.addEventListener('start', function(){ tween = null; controls.autoRotate = false; hideHint(); });
+
+/* ================= picking ================= */
+var ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), down = null;
+function pickAt(cx, cy){
+  var r = canvas.getBoundingClientRect();
+  ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  var hits = ray.intersectObjects(pickables, false);
+  return hits.length ? hits[0].object.userData.item : null;
+}
+canvas.addEventListener('pointerdown', function(e){ down = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', function(e){
+  if (!down) return;
+  var dx = e.clientX - down[0], dy = e.clientY - down[1]; down = null;
+  if (dx * dx + dy * dy > 64) return;
+  var id = pickAt(e.clientX, e.clientY);
+  if (id){ closeSheet(); select(id, { focus:true }); }
+});
+
+/* ================= visual state per item ================= */
+var COL = { alert:new THREE.Color(0xff4d42).convertSRGBToLinear(), warn:new THREE.Color(0xffa22e).convertSRGBToLinear(), ok:new THREE.Color(0x3fd0a6).convertSRGBToLinear() };
+function applyVisual(it, t){
+  var sel = state.selected === it.id;
+  var revealed = !scan.active || scan.x < it.revealX;
+  var col = null, inten = 0, tint = 0;
+  if (revealed && it.status === 'alert'){ col = COL.alert; inten = reduce ? 0.5 : 0.32 + 0.36 * Math.pow(0.5 + 0.5 * Math.sin(t * 3.4), 2); tint = 0.35; }
+  else if (revealed && it.status === 'warn'){ col = COL.warn; inten = 0.3; tint = 0.28; }
+  if (sel && revealed){ if (!col){ col = COL.ok; tint = 0.3; } inten = Math.max(inten, 0.3) + 0.06; }
+  var wheelLimited = it.id === 'tireLow' && it.status !== 'ok' && it.lowWheels && it.lowWheels.length;
+  for (var i = 0; i < it.mats.length; i++){
+    var m = it.mats[i];
+    var on = !!col && (!wheelLimited || it.lowWheels.indexOf(m.userData.wheel) >= 0);
+    var metal = m.metalness > 0.5;
+    if (on){ m.emissive.copy(col); m.emissiveIntensity = (metal ? inten : inten + 0.1) * 1.35; m.color.copy(m.userData.base).lerp(col, metal ? tint : tint * 0.3); }
+    else { m.emissive.setRGB(0, 0, 0); m.emissiveIntensity = 0; m.color.copy(m.userData.base); }
+  }
+  var showHalo = revealed && (it.status !== 'ok' || sel);
+  for (var h = 0; h < it.halos.length; h++){
+    var sp = it.halos[h];
+    var vis = showHalo && (!wheelLimited || it.lowWheels.indexOf(it.anchorWheel[h]) >= 0);
+    sp.visible = vis;
+    if (!vis) continue;
+    sp.material.color.copy(col || COL.ok);
+    var ext = state.mode === 'exterior';
+    var blend = ext ? THREE.NormalBlending : THREE.AdditiveBlending, map = ext ? PIN_TEX : HALO_TEX;
+    if (sp.material.blending !== blend || sp.material.map !== map){ sp.material.blending = blend; sp.material.map = map; sp.material.needsUpdate = true; }
+    var pulse = (it.status === 'alert' && !reduce) ? 0.8 + 0.2 * Math.sin(t * 3.4) : 1;
+    sp.material.opacity = ext ? (sel ? 1 : 0.85) : (sel ? 0.75 : 0.5) * pulse;
+    sp.scale.setScalar(ext ? (sel ? 0.36 : 0.27) * (it.status === 'alert' && !reduce ? 0.94 + 0.06 * Math.sin(t * 3.4) : 1) : it.halo * (sel ? 1.55 : 1.35));
+  }
+}
+
+/* ================= pinned label ================= */
+var tagEl = $('tag'), tagReady = reduce, pv = new V3();
+function updateTag(){
+  var it = byId[state.selected];
+  if (!tagReady || !it){ tagEl.hidden = true; return; }
+  var cands = activeAnchors(it), best = cands[0], bd = Infinity;
+  cands.forEach(function(a){ var d = a.distanceToSquared(camera.position); if (d < bd){ bd = d; best = a; } });
+  pv.copy(best).project(camera);
+  if (pv.z > 1 || pv.z < -1){ tagEl.hidden = true; return; }
+  var w = stage.clientWidth, h = stage.clientHeight;
+  var x = (pv.x * 0.5 + 0.5) * w, y = (-pv.y * 0.5 + 0.5) * h;
+  tagEl.hidden = false;
+  tagEl.classList.toggle('flip', x > w - 420);
+  tagEl.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
+}
+selectHook = function(){ if (!scan.active) tagReady = true; };
+
+/* ================= loop ================= */
+function finishScan(){
+  scan.active = false; scan.x = -10; xrayMat.uniforms.uScan.value = -10; scanPlane.visible = false; tagReady = true;
+  var n = issues().length;
+  $('scanText').textContent = n ? '진단 완료 · 확인 필요 ' + n + '건' : '진단 완료 · 모두 정상';
+  $('scanline').classList.add('done');
+  setTimeout(function(){ if (!state.drive && !state.sheet) showBanner(); }, 500);
+}
+if (!scan.active) finishScan();
+var clock = new THREE.Clock();
+function frame(now){
+  requestAnimationFrame(frame);
+  if (state.drive || state.compact || document.hidden) return;
+  var t = clock.getElapsedTime();
+  if (scan.active){
+    var p = (now - scan.t0) / scan.dur;
+    if (p >= 0 && p <= 1){
+      var x = 2.7 - 5.4 * easeIO(p);
+      scan.x = x; xrayMat.uniforms.uScan.value = x; scanPlane.position.x = x; scanPlane.visible = true;
+      $('scanText').textContent = '진단 중 ' + Math.round(p * 100) + '%';
+    } else if (p > 1) finishScan();
+  }
+  if (tween){
+    var k = Math.min(1, (now - tween.t0) / tween.dur), e = easeIO(k);
+    controls.target.lerpVectors(tween.fromT, tween.toT, e);
+    var sph = new THREE.Spherical(
+      tween.from.radius + (tween.toR - tween.from.radius) * e,
+      tween.from.phi + (tween.toPhi - tween.from.phi) * e,
+      tween.from.theta + tween.dTheta * e);
+    camera.position.setFromSpherical(sph).add(controls.target);
+    if (k >= 1) tween = null;
+  }
+  controls.update();
+  for (var i = 0; i < ITEMS.length; i++) applyVisual(ITEMS[i], t);
+  renderer.render(scene, camera);
+  updateTag();
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+resize();
+camera.position.copy(controls.target).addScaledVector(DEFAULT_DIR, fitDistance());
+requestAnimationFrame(frame);
+if (Android && Android.ready) Android.ready();
+})();
+</script>
+</body>
+</html>

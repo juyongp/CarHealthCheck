@@ -1,0 +1,21 @@
+[versions]
+agp = "8.8.2"
+kotlin = "2.0.0"
+coreKtx = "1.16.0"
+activity = "1.10.1"
+# Pleos Vehicle SDK. 동기화가 실패하면 공식 샘플의 빌드 파일과 같은 "2.3.1"로 바꿔 보세요.
+vehicleSdk = "2.3.2"
+# Pleos 음성 안내 SDK. 차량의 CaaS 음성 엔진 4.1.29 이상이 필요해요.
+ttsSdk = "3.3.1"
+kotlinReflect = "2.0.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
+vehicle-sdk = { module = "ai.pleos.playground:Vehicle", version.ref = "vehicleSdk" }
+tts-sdk = { module = "ai.pleos.playground:TextToSpeech", version.ref = "ttsSdk" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlinReflect" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
