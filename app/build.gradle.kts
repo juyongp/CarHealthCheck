@@ -24,8 +24,8 @@ android {
         // Pleos 가이드: 차량 보안 요구사항 때문에 minSdk는 28 이상이어야 해요.
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         buildConfigField("String", "VEHICLE_SDK_VERSION", "\"${libs.versions.vehicleSdk.get()}\"")
     }
 

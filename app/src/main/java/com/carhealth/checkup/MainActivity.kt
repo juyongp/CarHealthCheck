@@ -240,10 +240,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /** [odometerKm] is the page's estimate for that day, negative when unknown; [how] is "diy", "shop" or "past". */
         @JavascriptInterface
-        fun recordReplacement(itemId: String) {
+        fun recordReplacement(itemId: String, daysAgo: Int, odometerKm: Double, how: String) {
             main.post {
-                usage.recordReplacement(itemId)
+                usage.recordReplacement(itemId, daysAgo, odometerKm, how)
                 vehicleReader?.publishNow()
             }
         }

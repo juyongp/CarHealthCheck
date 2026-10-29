@@ -161,6 +161,56 @@ button{font:inherit;color:inherit}
 .btn{appearance:none;border:2px solid var(--line-2);background:transparent;color:var(--fg);font-size:28px;font-weight:600;line-height:1;padding:28px 36px;border-radius:0;cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .btn.wide{flex:1}
+.btn.ghost{border-color:transparent;padding-left:0;padding-right:0;color:var(--muted);font-weight:500}
+.sw.na{--c:var(--line-2)}
+.row.na .nm,.row.na .v{color:var(--faint)}
+
+/* maintenance plan: entry card in the list column, plan view in place of the detail card */
+.nextcard{appearance:none;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;width:100%;text-align:left;background:var(--bg-3);border:2px solid var(--line-2);border-radius:0;padding:22px 24px;cursor:pointer;--c:var(--accent)}
+.nextcard[aria-pressed="true"]{border-color:var(--accent);background:var(--sel)}
+.nextcard .eyebrow{font-size:18px}
+.nextcard b{display:block;font-size:29px;font-weight:600;line-height:1.3;margin-top:6px}
+.nextcard span.s{display:block;font-size:23px;color:var(--muted);line-height:1.35}
+.nextcard svg{width:36px;height:36px;stroke:var(--fg);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.pstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2)}
+.pstats div{padding:20px 0 18px;display:grid;gap:4px}
+.pstats div + div{border-left:1px solid var(--line);padding-left:24px}
+.pstats .k{font-size:22px;color:var(--faint)}
+.pstats b{font-family:var(--mono);font-size:44px;font-weight:500;line-height:1.1;letter-spacing:-.01em}
+.pstats b small{font-family:var(--body);font-size:24px;font-weight:500;color:var(--muted);margin-left:4px}
+.tl svg{display:block;width:100%;height:auto;overflow:visible}
+.tl-axis{stroke:var(--line-2);stroke-width:1}
+.tl-tick{fill:var(--faint);font-family:var(--mono);font-size:17px}
+.tl-track{stroke:var(--line);stroke-width:6;stroke-linecap:round}
+.tl-name{fill:var(--fg);font-size:24px;font-family:var(--body)}
+.tl-when{fill:var(--muted);font-size:20px;font-family:var(--mono)}
+.tl-visit{stroke:var(--fg);stroke-width:2;stroke-dasharray:5 5}
+.tl-band{fill:var(--sel)}
+.tl-vlab{fill:var(--fg);font-size:19px;font-family:var(--body);font-weight:600}
+.tl-row{cursor:pointer}
+.bundle{display:grid;gap:14px;background:var(--bg-2);border:1px solid var(--line-2);border-left:6px solid var(--accent);padding:24px 28px}
+.bundle b{font-size:30px;font-weight:600;line-height:1.35}
+.bundle p{margin:0;font-size:24px;color:var(--muted);line-height:1.45}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{display:inline-flex;align-items:center;gap:10px;font-size:23px;border:1px solid var(--line-2);padding:6px 16px;background:var(--bg-3)}
+.chip i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+.log{margin:0;padding:0;list-style:none;display:grid}
+.log li{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:16px;font-size:24px;padding:12px 0;border-top:1px solid var(--line)}
+.log li span:first-child{font-family:var(--mono);color:var(--faint)}
+.log li span:last-child{color:var(--muted)}
+.basis{font-size:22px;color:var(--faint);margin:0}
+
+/* shop report: the QR stays black on white in both themes so phones can read it */
+.report{display:grid;grid-template-columns:520px minmax(0,1fr);gap:40px;align-items:start}
+.qr{background:#fff;padding:0;border:1px solid var(--line-2);line-height:0}
+.qr svg{display:block;width:520px;height:520px}
+.rp-list{display:grid;gap:0}
+.rp-list div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:start;padding:16px 0;border-top:1px solid var(--line)}
+.rp-list div .sw{margin-top:12px}
+.rp-list b{display:block;font-size:28px;font-weight:600;line-height:1.3}
+.rp-list span{display:block;font-size:23px;color:var(--muted);line-height:1.4}
+.rp-total{font-size:26px;margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line-2)}
+.rp-total b{font-family:var(--mono);font-weight:500}
 
 /* card view: driving, or a narrow split window */
 .drive{position:absolute;inset:0;flex-direction:column;align-items:center;gap:40px;padding:56px 96px 48px;background:var(--bg-2)}
@@ -266,6 +316,10 @@ button{font:inherit;color:inherit}
             <div><p class="eyebrow">건강 점수</p><p class="verdict" id="verdict">점검이 필요해요</p></div>
           </div>
           <div class="cells" id="cells" aria-hidden="true"></div>
+          <button type="button" class="nextcard" id="nextCard" aria-pressed="false">
+            <span><span class="eyebrow">정비 계획</span><b id="ncMain"></b><span class="s" id="ncSub"></span></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
           <div class="lseg" role="group" aria-label="목록 범위">
             <button type="button" id="list-issues" aria-pressed="true">확인 필요</button>
             <button type="button" id="list-all" aria-pressed="false">전체</button>
@@ -284,14 +338,29 @@ button{font:inherit;color:inherit}
           <dl class="facts">
             <div><dt>원인</dt><dd id="dWhy"></dd></div>
             <div><dt>할 일</dt><dd id="dAct"></dd></div>
+            <div id="dDueRow"><dt>시기</dt><dd id="dDue"></dd></div>
             <div id="dCostRow"><dt>비용</dt><dd id="dCost"></dd></div>
           </dl>
           <div class="srcs" id="dSrcs"></div>
           <div class="actions">
-            <button type="button" class="btn primary" id="bookBtn">정비소 예약</button>
+            <button type="button" class="btn primary" id="bookBtn">정비소 진단서</button>
             <button type="button" class="btn primary" id="diyBtn">직접 교체 방법</button>
+            <button type="button" class="btn" id="recBtn">교체 기록</button>
             <button type="button" class="btn" id="focusBtn">3D에서 보기</button>
           </div>
+        </article>
+        <article class="detail" id="plan" hidden aria-live="polite" aria-labelledby="pTitle">
+          <div class="d-head"><span class="pill" style="--c:var(--fg)">정비 계획 · 앞으로 90일</span><button type="button" class="btn ghost" id="planClose">닫기</button></div>
+          <h3 id="pTitle"></h3>
+          <div class="pstats">
+            <div><span class="k">예상 비용</span><b id="pCost"></b></div>
+            <div><span class="k">정비 항목</span><b id="pCount"></b></div>
+            <div><span class="k">정비소 방문</span><b id="pVisits"></b></div>
+          </div>
+          <div class="tl" id="pTimeline"></div>
+          <div class="bundle" id="pBundle"></div>
+          <p class="basis" id="pBasis"></p>
+          <div id="pLogWrap"><p class="sh-lab">최근 정비 기록</p><ol class="log" id="pLog"></ol></div>
         </article>
       </aside>
     </section>
@@ -344,6 +413,7 @@ button{font:inherit;color:inherit}
   </div>
 </div>
 
+<script src="vendor/qrcode.js"></script>
 <script src="vendor/three.min.js"></script>
 <script src="vendor/OrbitControls.js"></script>
 <script>
@@ -354,68 +424,102 @@ var Android = window.AndroidBridge || null;
 
 /* ================= data: example values, replaced by vehicle data when connected ================= */
 var DEMO_ITEMS = [
-  { id:'brakeF', name:'앞 브레이크 패드', status:'alert', zone:'앞바퀴 · 좌우', val:'6', unit:'%', label:'남은 수명 추정', ref:'제동 기록으로 계산한 추정값', life:0.06, short:'이번 주 교체',
-    why:'1 km당 제동 횟수가 같은 차종 평균보다 1.6배 많아서 예상보다 빨리 닳았어요.',
-    act:'이번 주 안에 교체하세요. 그대로 타면 디스크까지 상해 수리비가 두 배 넘게 들 수 있어요.',
-    cost:'8~12만 원 · 약 1시간', data:['브레이크 페달 상태','누적 주행거리'], view:[0.85,0.3,1], dist:3.9, halo:0.5, book:true,
+  /* shop: needs a workshop visit. costR: [min, max] in 만 원, summed in the plan. due: days until it should be done (≤ 0 = now). */
+  { id:'brakeF', name:'앞 브레이크 패드', status:'alert', zone:'앞바퀴 · 좌우', val:'6', unit:'%', label:'남은 수명 추정', ref:'교체 후 주행거리와 제동 습관으로 계산', life:0.06, short:'이번 주 교체',
+    why:'교체 후 41,800 km를 달렸어요. 1 km당 제동이 0.96회로 평균보다 1.6배 잦아서 예상보다 빨리 닳았어요.',
+    act:'이번 주 안에 교체하세요. 그대로 타면 디스크까지 상해 수리비가 두 배 넘게 들 수 있어요. 회생제동 단계를 높이면 새 패드는 더 오래 써요.',
+    cost:'8~12만 원 · 약 1시간', costR:[8,12], shop:true, due:0, rec:'교체', data:['브레이크 페달 상태','누적 주행거리','교체 기록'], view:[0.85,0.3,1], dist:3.9, halo:0.5,
     drive:'이번 주 안에 교체하세요', voice:'앞 브레이크 패드 교체가 필요해요. 정차하면 자세히 알려 드릴게요.', top:['wFL','wFR'] },
-  { id:'tireLow', name:'타이어 공기압', status:'warn', zone:'앞 왼쪽', val:'저압', unit:'', label:'저압 경고', ref:'앞 왼쪽 바퀴에서 경고', short:'앞 왼쪽 저압', lowWheels:['FL'],
-    why:'앞 왼쪽 바퀴에서 저압 경고가 들어왔어요. 2주 전 공기를 넣은 뒤 다시 경고가 떠서 실펑크일 수 있어요.',
-    act:'가까운 타이어 전문점에서 펑크 점검을 받으세요. 그전까지는 권장 공기압으로 맞춰 두세요.',
-    cost:'펑크 수리 1~2만 원 · 약 20분', data:['바퀴별 저압 경고'], view:[0.55,0.32,-1], dist:3.9, halo:0.62, book:true,
-    drive:'공기압이 낮아요. 점검을 받으세요', voice:'앞 왼쪽 타이어 공기압이 낮아요. 정차하면 자세히 알려 드릴게요.' },
+  { id:'tire', name:'타이어', status:'warn', zone:'네 바퀴', val:'9,620', unit:'km', label:'지난 교환 후 주행', ref:'교환 기준 10,000 km', life:0.04, short:'교환 시기',
+    why:'앞뒤 타이어를 바꿔 끼운 뒤 9,620 km를 달렸어요. 전기차는 무겁고 토크가 커서 앞바퀴가 더 빨리 닳아요.',
+    act:'1만 km마다 앞뒤 위치를 바꾸면 네 바퀴가 고르게 닳아 타이어를 더 오래 써요. 브레이크 패드를 바꿀 때 함께 하세요.',
+    cost:'2~4만 원 · 약 30분', costR:[2,4], shop:true, due:9, rec:'위치 교환', data:['누적 주행거리','교체 기록'], view:[0.55,0.32,-1], dist:3.9, halo:0.62, top:['wFL','wFR','wRL','wRR'],
+    drive:'타이어 위치를 바꿀 때가 됐어요', voice:'타이어 위치 교환 시기가 됐어요. 정차하면 자세히 알려 드릴게요.' },
   { id:'washer', name:'와셔액', status:'warn', zone:'보닛 안쪽', val:'부족', unit:'', label:'와셔액 경고', ref:'보충이 필요해요', short:'보충 필요',
     why:'와셔액 부족 경고가 들어왔어요. 비나 눈이 오는 날 앞 유리를 닦지 못할 수 있어요.',
     act:'직접 보충할 수 있어요. 보닛 안쪽의 유리창 그림이 있는 탱크에 채우면 돼요.',
-    cost:'와셔액 2~5천 원 · 직접 하면 5분', data:['와셔액 부족 경고'], view:[1,0.9,0.45], dist:3.5, halo:0.46, top:['frunk'],
+    cost:'와셔액 2~5천 원 · 직접 하면 5분', costR:[0.2,0.5], due:0, data:['와셔액 부족 경고'], view:[1,0.9,0.45], dist:3.5, halo:0.46, top:['frunk'],
     drive:'와셔액을 보충하세요', voice:'와셔액이 부족해요. 정차하면 보충 방법을 알려 드릴게요.',
     diy:{ time:'약 5분', parts:'와셔액 1통', btn:'보충 완료', verb:'보충',
       steps:['차를 평평한 곳에 세우고 보닛을 열어요.','유리창과 물줄기 그림이 있는 탱크 뚜껑을 찾아 열어요.','와셔액을 표시선까지 천천히 부어요.','뚜껑을 닫고 보닛을 내려요.'],
-      done:{ val:'정상', label:'와셔액 경고', ref:'방금 보충했어요', short:'방금 보충', why:'방금 와셔액을 보충했어요.', act:'경고가 다시 들어오면 알려 드릴게요.', cost:'' } } },
-  { id:'cabinFilter', name:'에어컨 필터', status:'warn', zone:'조수석 글로브박스 안쪽', val:'286', unit:'시간', label:'교체 후 공조 사용', ref:'교체 기준 300시간', life:0.05, short:'교체 시기 임박',
+      done:{ status:'ok', val:'정상', label:'와셔액 경고', ref:'방금 보충했어요', short:'방금 보충', why:'방금 와셔액을 보충했어요.', act:'경고가 다시 들어오면 알려 드릴게요.', cost:'', due:null } } },
+  { id:'cabinFilter', name:'에어컨 필터', status:'warn', zone:'조수석 글로브박스 안쪽', val:'286', unit:'시간', label:'교체 후 공조 사용', ref:'교체 기준 300시간 또는 1년', life:0.05, short:'교체 시기 임박',
     why:'교체 후 공조를 286시간 썼어요. 교체 기준에 거의 다 됐어요.',
     act:'직접 교체할 수 있어요. 글로브박스를 열고 안쪽 덮개를 빼면 필터가 나와요.',
-    cost:'부품 1~2만 원 · 직접 하면 10분', data:['공조 팬 속도','에어컨·내외기 상태','교체 기록'], view:[0.35,0.9,1], dist:3.4, halo:0.42, top:['dash'],
+    cost:'부품 1~2만 원 · 직접 하면 10분', costR:[1,2], due:12, rec:'교체', data:['공조 전원·팬 속도','누적 주행거리','교체 기록'], view:[0.35,0.9,1], dist:3.4, halo:0.42, top:['dash'],
     drive:'교체 시기가 거의 됐어요', voice:'에어컨 필터 교체 시기가 거의 됐어요. 정차하면 교체 방법을 알려 드릴게요.',
     diy:{ time:'약 10분', parts:'에어컨 필터 1개', btn:'교체 완료', verb:'교체',
-      steps:['글로브박스 안의 물건을 꺼내고 문을 열어요.','양옆 고정 장치를 눌러 글로브박스를 아래로 내려요.','안쪽 필터 덮개를 열고 헌 필터를 빼요.','필터에 표시된 화살표 방향을 확인해 새 필터를 넣고, 덮개와 글로브박스를 닫아요.'],
-      done:{ val:'0', ref:'교체 기준 300시간', life:1, short:'방금 교체', why:'방금 직접 교체했어요.', act:'다음 교체 시기가 되면 다시 알려 드릴게요.', cost:'' } } },
+      steps:['글로브박스 안의 물건을 꺼내고 문을 열어요.','양옆 고정 장치를 눌러 글로브박스를 아래로 내려요.','안쪽 필터 덮개를 열고 헌 필터를 빼요.','필터에 표시된 화살표 방향을 확인해 새 필터를 넣고, 덮개와 글로브박스를 닫아요.'] } },
   { id:'brakeFluid', name:'브레이크액', status:'ok', zone:'보닛 안 운전석 쪽', val:'정상', unit:'', label:'수위', ref:'수위 센서 기준', short:'수위 정상',
-    why:'브레이크액 수위가 정상이에요.', act:'정기 점검 때 함께 확인하면 돼요.', cost:'', data:['브레이크액 수위 상태'], view:[1,0.9,-0.5], dist:3.5, halo:0.36, top:['frunk'],
+    why:'브레이크액 수위가 정상이에요.', act:'정기 점검 때 함께 확인하면 돼요.', cost:'', costR:[3,5], shop:true, data:['브레이크액 수위 상태'], view:[1,0.9,-0.5], dist:3.5, halo:0.36, top:['frunk'],
     drive:'브레이크액을 점검하세요', voice:'브레이크액 수위가 낮아요. 안전한 곳에 정차해 주세요.' },
   { id:'reducer', name:'감속기 오일', status:'ok', zone:'모터 옆 기어박스', val:'정상', unit:'', label:'오일 수위', ref:'변속기 오일 수위 상태 기준', short:'수위 정상',
-    why:'감속기 오일 수위가 정상이에요.', act:'따로 할 일은 없어요.', cost:'', data:['변속기 오일 수위 상태','누적 주행거리'], view:[1,0.5,0.6], dist:4.0, halo:0.4, top:['frunk'],
+    why:'감속기 오일 수위가 정상이에요.', act:'따로 할 일은 없어요.', cost:'', costR:[3,6], shop:true, data:['변속기 오일 수위 상태'], view:[1,0.5,0.6], dist:4.0, halo:0.4, top:['frunk'],
     drive:'감속기 오일을 점검하세요', voice:'감속기 오일 점검이 필요해요. 정차하면 자세히 알려 드릴게요.' },
+  { id:'motor', name:'구동 모터', status:'ok', zone:'앞뒤 차축', val:'정상', unit:'', label:'출력 제한 경고', ref:'경고 없음', short:'경고 없음',
+    why:'모터와 인버터에서 출력 제한 경고가 없어요.', act:'따로 할 일은 없어요.', cost:'', costR:[0,0], shop:true, data:['출력 제한 경고'], view:[0.95,0.42,0.8], dist:4.0, halo:0.48, top:['frunk'],
+    drive:'구동 계통을 점검하세요', voice:'구동 계통에 출력 제한 경고가 들어왔어요. 안전한 곳에 정차해 주세요.' },
   { id:'hvBattery', name:'고전압 배터리', status:'ok', zone:'차체 바닥', val:'5.8', unit:'km/kWh', label:'누적 전비', ref:'3개월 전 5.9 km/kWh', short:'전비 안정적',
     trend:[5.92,5.95,5.9,5.88,5.91,5.86,5.85,5.87,5.83,5.84,5.82,5.8], refVal:5.5, refLab:'기준 5.5', span:'3개월 전',
     why:'비슷한 날씨에서 전비가 거의 그대로예요. 배터리 이상으로 볼 만한 변화는 없어요.', act:'지금처럼 타면 돼요.', cost:'', data:['누적 전비','충전량'], view:[0.2,0.75,1], dist:5.4, halo:0.9, top:['floor'],
     drive:'배터리 점검이 필요해요', voice:'고전압 배터리 효율이 떨어졌어요. 정차하면 자세히 알려 드릴게요.' },
-  { id:'brakeR', name:'뒤 브레이크 패드', status:'ok', zone:'뒷바퀴 · 좌우', val:'63', unit:'%', label:'남은 수명 추정', ref:'제동 기록으로 계산한 추정값', life:0.63, short:'여유 있음',
-    why:'앞바퀴보다 제동 부담이 적어서 천천히 닳고 있어요.', act:'다음 정기 점검 때 같이 보면 돼요.', cost:'', data:['브레이크 페달 상태','누적 주행거리'], view:[-0.8,0.32,1], dist:3.9, halo:0.44, top:['wRL','wRR'],
+  { id:'brakeR', name:'뒤 브레이크 패드', status:'ok', zone:'뒷바퀴 · 좌우', val:'63', unit:'%', label:'남은 수명 추정', ref:'교체 후 주행거리와 제동 습관으로 계산', life:0.63, short:'여유 있음',
+    why:'앞바퀴보다 제동 부담이 적어서 천천히 닳고 있어요.', act:'다음 정기 점검 때 같이 보면 돼요.', cost:'8~12만 원 · 약 1시간', costR:[8,12], shop:true, due:610, rec:'교체', data:['브레이크 페달 상태','누적 주행거리','교체 기록'], view:[-0.8,0.32,1], dist:3.9, halo:0.44, top:['wRL','wRR'],
     drive:'뒤 브레이크 패드를 점검하세요', voice:'뒤 브레이크 패드 점검이 필요해요.' },
-  { id:'wiper', name:'와이퍼', status:'ok', zone:'앞 유리 아래', val:'42', unit:'시간', label:'교체 후 작동 시간', ref:'교체 기준 100시간', life:0.58, short:'여유 있음',
-    why:'교체 후 와이퍼를 42시간 썼어요.', act:'유리에 줄무늬가 남기 시작하면 교체하세요.', cost:'', data:['와이퍼 작동 상태','교체 기록'], view:[1,0.95,0.15], dist:3.6, halo:0.4, top:['dash'],
+  { id:'wiper', name:'와이퍼', status:'ok', zone:'앞 유리 아래', val:'42', unit:'시간', label:'교체 후 작동 시간', ref:'교체 기준 100시간 또는 1년', life:0.58, short:'여유 있음',
+    why:'교체 후 와이퍼를 42시간 썼어요.', act:'유리에 줄무늬가 남기 시작하면 교체하세요.', cost:'부품 2~4만 원 · 직접 하면 5분', costR:[2,4], due:146, rec:'교체', data:['와이퍼 작동 상태','교체 기록'], view:[1,0.95,0.15], dist:3.6, halo:0.4, top:['dash'],
     drive:'와이퍼를 교체하세요', voice:'와이퍼 교체 시기가 됐어요.',
     diy:{ time:'약 5분', parts:'와이퍼 블레이드 2개', btn:'교체 완료', verb:'교체',
-      steps:['와이퍼 암을 유리에서 조심히 세워요.','고정 버튼을 누른 채 헌 블레이드를 아래로 밀어 빼요.','새 블레이드를 딸깍 소리가 날 때까지 끼워요.','암을 천천히 내려 유리에 닿게 해요.'],
-      done:{ val:'0', ref:'교체 기준 100시간', life:1, short:'방금 교체', why:'방금 직접 교체했어요.', act:'다음 교체 시기가 되면 다시 알려 드릴게요.', cost:'' } } }
+      steps:['와이퍼 암을 유리에서 조심히 세워요.','고정 버튼을 누른 채 헌 블레이드를 아래로 밀어 빼요.','새 블레이드를 딸깍 소리가 날 때까지 끼워요.','암을 천천히 내려 유리에 닿게 해요.'] } }
 ];
-var DATA_FIELDS = ['status','zone','val','unit','label','ref','life','short','why','act','cost','trend','refVal','refLab','span','lowWheels','done','live','raw','book'];
+var DAY = 864e5;
+/* Demo history, relative to today, newest first after sorting. */
+var DEMO_LOG = [
+  { id:'wiper', at:Date.now() - 214 * DAY, how:'diy' },
+  { id:'tire', at:Date.now() - 229 * DAY, how:'shop' },
+  { id:'cabinFilter', at:Date.now() - 341 * DAY, how:'diy' },
+  { id:'brakeR', at:Date.now() - 1000 * DAY, how:'shop' }
+];
+var DEMO_BASIS = '예시 · 하루 평균 42 km 주행 기준';
+var DATA_FIELDS = ['status','zone','val','unit','label','ref','life','short','why','act','cost','trend','refVal','refLab','span','done','live','raw','due','na'];
 var ITEMS = DEMO_ITEMS.map(function(it){ return JSON.parse(JSON.stringify(it)); });
 var LABEL = { alert:'즉시 정비', warn:'점검 권장', ok:'양호' };
 var CSSVAR = { alert:'var(--alert)', warn:'var(--warn)', ok:'var(--ok)' };
 var RANK = { alert:0, warn:1, ok:2 };
-var WHEEL_KO = { FL:'앞 왼쪽', FR:'앞 오른쪽', RL:'뒤 왼쪽', RR:'뒤 오른쪽' };
 var byId = {};
-ITEMS.forEach(function(it, i){ byId[it.id] = it; it.order = i; it.mats = []; it.meshes = []; it.anchorObjs = []; it.anchorWheel = []; it.anchors = []; it.halos = []; });
-var state = { selected:'brakeF', hover:null, mode:'xray', interacted:false, drive:false, compact:false, listAll:false, sheet:null, connected:false, uxConnected:false, dataMode:'demo', lastVehicle:null };
+ITEMS.forEach(function(it, i){ byId[it.id] = it; it.order = i; it.mats = []; it.meshes = []; it.anchorObjs = []; it.anchors = []; it.halos = []; });
+var state = { selected:'brakeF', hover:null, mode:'xray', interacted:false, drive:false, compact:false, listAll:false, sheet:null, panel:'item', connected:false, uxConnected:false, dataMode:'demo', lastVehicle:null, basis:DEMO_BASIS, log:DEMO_LOG.slice(), ctx:null };
 
 function $(id){ return document.getElementById(id); }
 function valText(it){ return !it.unit ? it.val : it.unit === '%' ? it.val + '%' : it.val + ' ' + it.unit; }
-function sorted(){ return ITEMS.slice().sort(function(a, b){ return RANK[a.status] - RANK[b.status] || a.order - b.order; }); }
+function sorted(){ return ITEMS.slice().sort(function(a, b){ return RANK[a.status] - RANK[b.status] || (a.na ? 1 : 0) - (b.na ? 1 : 0) || a.order - b.order; }); }
 function issues(){ return sorted().filter(function(it){ return it.status !== 'ok'; }); }
-function counts(){ var c = { alert:0, warn:0, ok:0 }; ITEMS.forEach(function(it){ c[it.status]++; }); return c; }
-function topZones(it){ if (it.id === 'tireLow') return (it.lowWheels || []).map(function(w){ return 'w' + w; }); return it.top || []; }
+function counts(){ var c = { alert:0, warn:0, ok:0, na:0 }; ITEMS.forEach(function(it){ if (it.na) c.na++; else c[it.status]++; }); return c; }
+function topZones(it){ return it.top || []; }
+function recVerb(it){ return it.rec || (it.diy && it.diy.verb) || '교체'; }
+
+/* ================= time helpers ================= */
+function dateText(ms){ var d = new Date(ms); return (d.getMonth() + 1) + '월 ' + d.getDate() + '일'; }
+function relText(days){
+  if (days <= 0.5) return '지금';
+  if (days < 1.5) return '내일';
+  if (days < 14) return Math.round(days) + '일 뒤';
+  if (days < 60) return '약 ' + Math.round(days / 7) + '주 뒤';
+  if (days < 730) return '약 ' + Math.round(days / 30.4) + '개월 뒤';
+  return '2년 넘게 남았어요';
+}
+function dueText(days, verb){
+  if (days <= 0.5) return '지금 ' + verb + '하세요';
+  if (days >= 730) return '2년 넘게 남았어요';
+  return dateText(Date.now() + days * DAY) + '경 ' + verb + ' · ' + relText(days);
+}
+function wonParts(r){
+  if (r[1] < 1) return { num:Math.round(r[0] * 10) + (r[0] === r[1] ? '' : '~' + Math.round(r[1] * 10)), unit:'천 원' };
+  function f(x){ return x >= 10 ? Math.round(x) : Math.round(x * 10) / 10; }
+  return { num:f(r[0]) === f(r[1]) ? String(f(r[0])) : f(r[0]) + '~' + f(r[1]), unit:'만 원' };
+}
+function won(r){ var w = wonParts(r); return w.num + w.unit; }
+function km(n){ return Math.round(n).toLocaleString('ko-KR'); }
 
 /* ================= window scaling ================= */
 var scale = 0.5, onScale = null;
@@ -445,24 +549,29 @@ function renderSummary(){
   $('verdict').textContent = score >= 90 ? '건강해요' : score >= 75 ? '대체로 괜찮아요' : '점검이 필요해요';
   var cells = $('cells'); cells.innerHTML = '';
   cells.style.gridTemplateColumns = 'repeat(' + ITEMS.length + ',1fr)';
-  sorted().forEach(function(it){ var i = document.createElement('i'); i.style.setProperty('--c', CSSVAR[it.status]); cells.appendChild(i); });
+  sorted().forEach(function(it){ var i = document.createElement('i'); i.style.setProperty('--c', it.na ? 'var(--line-2)' : CSSVAR[it.status]); cells.appendChild(i); });
   $('list-issues').textContent = '확인 필요 ' + (c.alert + c.warn);
   $('list-all').textContent = '전체 ' + ITEMS.length;
+  var p = plan();
+  if (p.visits.length){ $('ncMain').textContent = p.visits[0].day <= 0.5 ? '지금 정비소에 가야 해요' : dateText(Date.now() + p.visits[0].day * DAY) + '경 정비소 방문'; $('ncSub').textContent = p.visits[0].items.length + '건 한 번에 · 예상 ' + won(p.cost); }
+  else if (p.soon.length){ $('ncMain').textContent = '직접 할 정비 ' + p.soon.length + '건'; $('ncSub').textContent = '정비소에 갈 일은 90일 동안 없어요'; }
+  else if (p.later.length){ $('ncMain').textContent = '90일 안에 할 정비 없음'; $('ncSub').textContent = '다음: ' + p.later[0].it.name + ' · ' + relText(p.later[0].due); }
+  else { $('ncMain').textContent = '정비 일정 계산 중'; $('ncSub').textContent = '교체 기록을 남기면 다음 시기를 알려 드려요'; }
 }
 function renderList(){
   var root = $('rows'); root.innerHTML = '';
   var list = state.listAll ? sorted() : issues();
   if (!list.length){ var p = document.createElement('p'); p.className = 'empty'; p.textContent = '확인할 항목이 없어요'; root.appendChild(p); }
   list.forEach(function(it){
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'row'; b.id = 'row-' + it.id; b.dataset.id = it.id;
-    var dot = document.createElement('i'); dot.className = 'sw'; dot.style.setProperty('--c', CSSVAR[it.status]);
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'row' + (it.na ? ' na' : ''); b.id = 'row-' + it.id; b.dataset.id = it.id;
+    var dot = document.createElement('i'); dot.className = 'sw' + (it.na ? ' na' : ''); if (!it.na) dot.style.setProperty('--c', CSSVAR[it.status]);
     var mid = document.createElement('span');
     var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.name;
     var sh = document.createElement('span'); sh.className = 'sh'; sh.textContent = it.short;
     mid.appendChild(nm); mid.appendChild(sh);
     var v = document.createElement('span'); v.className = 'v'; v.textContent = valText(it);
     b.appendChild(dot); b.appendChild(mid); b.appendChild(v);
-    b.setAttribute('aria-current', it.id === state.selected ? 'true' : 'false');
+    b.setAttribute('aria-current', state.panel === 'item' && it.id === state.selected ? 'true' : 'false');
     b.addEventListener('click', function(){ select(it.id, { focus:true }); });
     root.appendChild(b);
   });
@@ -506,17 +615,22 @@ function renderDetail(){
   if (it.trend && it.trend.length > 1){ sp.hidden = false; sp.innerHTML = sparkSVG(it); } else { sp.hidden = true; sp.innerHTML = ''; }
   $('dWhy').textContent = it.why;
   $('dAct').textContent = it.act;
-  $('dCostRow').hidden = !it.cost || it.status === 'ok';
+  var hasDue = typeof it.due === 'number' && !it.na;
+  $('dDueRow').hidden = !hasDue;
+  if (hasDue) $('dDue').textContent = dueText(it.due, recVerb(it)) + (it.due > 0.5 && it.due < 730 ? ' (' + state.basis.replace(/^예시 · /, '') + ')' : '');
+  $('dCostRow').hidden = !it.cost || (it.status === 'ok' && !(hasDue && it.due <= 90));
   $('dCost').textContent = it.cost;
   var srcs = $('dSrcs'); srcs.innerHTML = '';
   var lab = document.createElement('span'); lab.className = 'lab'; lab.textContent = it.live ? '차량에서 읽은 데이터' : '사용하는 차량 데이터';
   srcs.appendChild(lab);
   it.data.forEach(function(d){ var s = document.createElement('span'); s.className = 't' + (it.live ? ' live' : ''); s.textContent = d; srcs.appendChild(s); });
   if (it.live && it.raw != null){ var r = document.createElement('span'); r.className = 't'; r.textContent = 'SDK 값: ' + it.raw; srcs.appendChild(r); }
-  $('bookBtn').hidden = !(it.book && it.status !== 'ok');
-  $('diyBtn').hidden = !it.diy || it.done;
+  $('bookBtn').hidden = !(it.shop && (it.status !== 'ok' || (hasDue && it.due <= 45)));
+  $('diyBtn').hidden = !it.diy || it.done || it.na;
   if (it.diy) $('diyBtn').textContent = '직접 ' + it.diy.verb + ' 방법';
-  document.querySelectorAll('.row').forEach(function(r){ r.setAttribute('aria-current', r.dataset.id === it.id ? 'true' : 'false'); });
+  $('recBtn').hidden = !it.rec || it.na;
+  if (it.rec) $('recBtn').textContent = it.rec + ' 기록';
+  document.querySelectorAll('.row').forEach(function(r){ r.setAttribute('aria-current', state.panel === 'item' && r.dataset.id === it.id ? 'true' : 'false'); });
   $('tagName').textContent = it.name;
   $('tagVal').textContent = LABEL[it.status] + ' · ' + valText(it);
   $('tag').style.setProperty('--c', CSSVAR[it.status]);
@@ -529,21 +643,146 @@ function renderDrive(){
   $('dvChip').textContent = state.drive ? '주행 중에는 요약만 보여요' : '창이 좁아서 요약만 보여요';
   $('demoPark').hidden = !(state.drive && !state.uxConnected);
   if (!it){
+    var next = plan().upcoming[0];
     card.style.setProperty('--c', 'var(--ok)');
     $('dvPill').textContent = '양호'; $('dvName').textContent = '모든 항목이 정상이에요'; $('dvLine').textContent = '편하게 운전하세요';
-    $('voiceBtn').hidden = true; $('dvFoot').textContent = '';
+    $('voiceBtn').hidden = true; $('dvFoot').textContent = next ? '다음 정비: ' + next.it.name + ' · ' + relText(next.due) : '';
     return;
   }
   card.style.setProperty('--c', CSSVAR[it.status]);
   $('dvPill').textContent = LABEL[it.status];
-  $('dvName').textContent = it.id === 'tireLow' && it.lowWheels && it.lowWheels.length ? WHEEL_KO[it.lowWheels[0]] + ' 타이어' : it.name;
+  $('dvName').textContent = it.name;
   $('dvLine').textContent = it.drive;
   $('voiceBtn').hidden = false;
   topZones(it).forEach(function(k){ var el = $('tc-' + k); if (el) el.classList.add('hl'); });
   if (list.length > 1) $('dvFoot').textContent = state.drive ? '나머지 ' + (list.length - 1) + '건은 정차하면 보여 드릴게요' : '확인 필요 항목이 ' + (list.length - 1) + '건 더 있어요';
   else $('dvFoot').textContent = state.drive ? '정차하면 자세한 내용을 보여 드릴게요' : '';
 }
-function renderAll(){ renderSummary(); renderList(); renderDetail(); if (state.drive || state.compact) renderDrive(); }
+
+/* ================= maintenance plan ================= */
+var HORIZON = 90, BUNDLE_DAYS = 45;
+/* Everything with a date, plus any open issue (due now). Shop jobs close together share one visit. */
+function plan(){
+  var all = [];
+  ITEMS.forEach(function(it){
+    if (it.na) return;
+    /* Open issues count as due now, but only ones with a job to plan (a shop visit, a part or a record). */
+    var actionable = it.shop || it.rec || it.diy;
+    var due = typeof it.due === 'number' && isFinite(it.due) ? it.due : it.status !== 'ok' && actionable ? 0 : null;
+    if (due == null) return;
+    all.push({ it:it, due:Math.max(0, due) });
+  });
+  all.sort(function(a, b){ return a.due - b.due || RANK[a.it.status] - RANK[b.it.status]; });
+  var soon = all.filter(function(e){ return e.due <= HORIZON; });
+  var later = all.filter(function(e){ return e.due > HORIZON; });
+  var cost = [0, 0];
+  soon.forEach(function(e){ if (e.it.costR){ cost[0] += e.it.costR[0]; cost[1] += e.it.costR[1]; } });
+  /* A visit starts at the earliest shop job; anything due within BUNDLE_DAYS after it (DIY jobs too) is done then. */
+  var visits = [], left = soon.slice();
+  while (left.some(function(e){ return e.it.shop; })){
+    var first = left.filter(function(e){ return e.it.shop; })[0];
+    var items = left.filter(function(e){ return e.due <= first.due + BUNDLE_DAYS && (e.it.shop || e.it.rec); });
+    visits.push({ day:first.due, items:items });
+    left = left.filter(function(e){ return items.indexOf(e) < 0; });
+  }
+  var shopJobs = soon.filter(function(e){ return e.it.shop; }).length;
+  return { all:all, soon:soon, later:later, upcoming:all, cost:cost, visits:visits, shopJobs:shopJobs, diy:left };
+}
+function timelineSVG(p){
+  var rows = p.soon.concat(p.later.slice(0, Math.max(0, 6 - p.soon.length)));
+  var W = 600, L = 196, R = 28, top = 34, rh = 50, H = top + rows.length * rh + 8;
+  var span = W - L - R;
+  function X(d){ return L + Math.min(d, HORIZON) / HORIZON * span; }
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="앞으로 90일 정비 일정">';
+  var v = p.visits[0];
+  if (v){
+    var vx = X(v.day), ve = X(Math.min(HORIZON, v.day + BUNDLE_DAYS));
+    s += '<rect class="tl-band" x="' + vx.toFixed(1) + '" y="' + (top - 6) + '" width="' + Math.max(2, ve - vx).toFixed(1) + '" height="' + (H - top) + '"/>';
+  }
+  [[0, '오늘'], [30, '1개월'], [60, '2개월'], [90, '3개월']].forEach(function(t){
+    var x = X(t[0]);
+    s += '<line class="tl-axis" x1="' + x + '" x2="' + x + '" y1="' + (top - 8) + '" y2="' + (H - 4) + '"/>';
+    s += '<text class="tl-tick" x="' + x + '" y="' + (top - 16) + '" text-anchor="' + (t[0] === 0 ? 'start' : t[0] === 90 ? 'end' : 'middle') + '">' + t[1] + '</text>';
+  });
+  rows.forEach(function(e, i){
+    var y = top + i * rh + rh / 2, x = X(e.due), col = CSSVAR[e.it.status === 'ok' ? 'ok' : e.it.status];
+    if (e.it.status === 'ok' && e.due <= HORIZON) col = 'var(--warn)';
+    var beyond = e.due > HORIZON;
+    s += '<g class="tl-row" data-id="' + e.it.id + '">';
+    s += '<rect x="0" y="' + (y - rh / 2) + '" width="' + W + '" height="' + rh + '" fill="transparent"/>';
+    s += '<text class="tl-name" x="0" y="' + (y + 8) + '">' + esc(e.it.name) + '</text>';
+    s += '<line class="tl-track" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/>';
+    s += '<line x1="' + L + '" x2="' + x.toFixed(1) + '" y1="' + y + '" y2="' + y + '" stroke="' + col + '" stroke-width="6" stroke-linecap="round" opacity=".45"/>';
+    if (beyond) s += '<path d="M' + (W - R - 6) + ',' + (y - 9) + 'l10,9l-10,9" fill="none" stroke="' + col + '" stroke-width="3" stroke-linecap="round"/>';
+    else s += '<circle cx="' + x.toFixed(1) + '" cy="' + y + '" r="9" fill="' + col + '"/>';
+    var label = beyond ? relText(e.due) : e.due <= 0.5 ? '지금' : dateText(Date.now() + e.due * DAY);
+    var lx = beyond ? W - R - 14 : x + 16, anchor = beyond || x > W - R - 110 ? 'end' : 'start';
+    if (anchor === 'end' && !beyond) lx = x - 16;
+    s += '<text class="tl-when" x="' + lx.toFixed(1) + '" y="' + (y - 14) + '" text-anchor="' + anchor + '">' + label + '</text>';
+    s += '</g>';
+  });
+  if (v) s += '<line class="tl-visit" x1="' + X(v.day).toFixed(1) + '" x2="' + X(v.day).toFixed(1) + '" y1="' + (top - 6) + '" y2="' + (H - 4) + '"/>';
+  return s + '</svg>';
+}
+function esc(t){ return String(t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+function chip(it){ var c = document.createElement('span'); c.className = 'chip'; var i = document.createElement('i'); i.style.setProperty('--c', it.status === 'ok' ? 'var(--warn)' : CSSVAR[it.status]); c.appendChild(i); c.appendChild(document.createTextNode(it.name + ' ' + recVerb(it))); return c; }
+function renderPlan(){
+  var p = plan(), v = p.visits[0];
+  $('pTitle').textContent = !p.soon.length ? '90일 동안 할 정비가 없어요'
+    : !p.visits.length ? '직접 할 수 있는 정비만 있어요'
+    : p.visits.length === 1 ? (p.shopJobs > 1 ? '정비소는 한 번만 가면 돼요' : '정비소 방문 1번이 필요해요')
+    : '정비소 방문 ' + p.visits.length + '번이 필요해요';
+  var w = p.soon.length ? wonParts(p.cost) : { num:'0', unit:'원' };
+  $('pCost').innerHTML = ''; $('pCost').appendChild(document.createTextNode(w.num));
+  var u = document.createElement('small'); u.textContent = w.unit; $('pCost').appendChild(u);
+  $('pCount').innerHTML = p.soon.length + '<small>건</small>';
+  $('pVisits').innerHTML = p.visits.length + '<small>번</small>';
+  var tl = $('pTimeline');
+  tl.innerHTML = p.all.length ? timelineSVG(p) : '';
+  tl.querySelectorAll('.tl-row').forEach(function(g){ g.addEventListener('click', function(){ select(g.dataset.id, { focus:true }); }); });
+  var bd = $('pBundle'); bd.innerHTML = '';
+  if (v){
+    var b = document.createElement('b');
+    b.textContent = (v.day <= 0.5 ? '이번 주에' : dateText(Date.now() + v.day * DAY) + '경') + ' 한 번에 하세요';
+    var chips = document.createElement('div'); chips.className = 'chips';
+    v.items.forEach(function(e){ chips.appendChild(chip(e.it)); });
+    var note = document.createElement('p');
+    var saved = p.shopJobs - p.visits.length;
+    var early = v.items.filter(function(e){ return e.due > v.day + 0.5; }).map(function(e){ return e.it.name; });
+    note.textContent = (saved > 0 ? '따로 가면 정비소에 ' + p.shopJobs + '번 가야 하지만, 묶으면 ' + p.visits.length + '번이면 돼요. ' : '')
+      + (early.length ? early.join(', ') + '도 조금 이르지만 같이 하면 다시 갈 일이 없어요.' : '진단서를 보여 주면 정비사가 한 번에 준비할 수 있어요.')
+      + (p.diy.length ? ' 직접 할 일: ' + p.diy.map(function(e){ return e.it.name + ' ' + recVerb(e.it); }).join(', ') + '.' : '');
+    bd.appendChild(b); bd.appendChild(chips); bd.appendChild(note);
+    var go = mkBtn('정비소에 보여 줄 진단서', 'primary', openReport); go.style.justifySelf = 'start';
+    bd.appendChild(go);
+  } else {
+    var b2 = document.createElement('b'); b2.textContent = p.diy.length ? '직접 하면 되는 일만 남았어요' : '지금처럼 타면 돼요';
+    var n2 = document.createElement('p'); n2.textContent = p.diy.length ? p.diy.map(function(e){ return e.it.name + ' ' + recVerb(e.it); }).join(', ') + ' — 항목을 누르면 방법을 알려 드려요.' : p.later.length ? '다음 정비는 ' + p.later[0].it.name + ', ' + relText(p.later[0].due) + '예요.' : '교체 기록을 남기면 다음 시기를 계산해 드려요.';
+    bd.appendChild(b2); bd.appendChild(n2);
+  }
+  $('pBasis').textContent = '날짜는 ' + state.basis + '으로 계산했어요. 비용은 일반 정비소 평균이에요.';
+  var log = $('pLog'); log.innerHTML = '';
+  var entries = state.log.slice().sort(function(a, b){ return b.at - a.at; }).slice(0, 4);
+  $('pLogWrap').hidden = !entries.length;
+  entries.forEach(function(e){
+    var it = byId[e.id]; if (!it) return;
+    var li = document.createElement('li');
+    [new Date(e.at).getFullYear() % 100 + '.' + (new Date(e.at).getMonth() + 1) + '.' + new Date(e.at).getDate(), it.name + ' ' + recVerb(it), { diy:'직접', shop:'정비소', past:'기록 입력' }[e.how] || ''].forEach(function(t){ var s = document.createElement('span'); s.textContent = t; li.appendChild(s); });
+    log.appendChild(li);
+  });
+}
+function showPanel(which){
+  state.panel = which;
+  $('plan').hidden = which !== 'plan';
+  $('detail').hidden = which === 'plan';
+  $('nextCard').setAttribute('aria-pressed', which === 'plan' ? 'true' : 'false');
+  if (which === 'plan') renderPlan();
+  document.querySelectorAll('.row').forEach(function(r){ r.setAttribute('aria-current', which === 'item' && r.dataset.id === state.selected ? 'true' : 'false'); });
+}
+$('nextCard').addEventListener('click', function(){ showPanel(state.panel === 'plan' ? 'item' : 'plan'); hideHint(); });
+$('planClose').addEventListener('click', function(){ showPanel('item'); });
+
+function renderAll(){ renderSummary(); renderList(); renderDetail(); if (state.panel === 'plan') renderPlan(); if (state.drive || state.compact) renderDrive(); }
 
 /* ================= toast, banner, sheet ================= */
 var toastTimer = null;
@@ -592,35 +831,105 @@ $('voiceBtn').addEventListener('click', function(){ var it = issues()[0]; if (it
 
 function closeSheet(){ $('sheet').hidden = true; state.sheet = null; }
 $('shClose').addEventListener('click', closeSheet);
-function openBook(it){
-  state.sheet = 'book';
-  $('shTitle').textContent = '정비소 예약';
-  $('shSub').textContent = it.name + ' · ' + (it.cost || '비용은 정비소에서 안내해요') + ' · 예시 화면';
+/* Shop report: what to fix on the next visit, as a QR the driver scans with a phone and shows or sends to the shop. */
+function reportItems(){
+  var p = plan(), list = [];
+  function addItem(it){ if (list.indexOf(it) < 0) list.push(it); }
+  if (p.visits[0]) p.visits[0].items.forEach(function(e){ addItem(e.it); });
+  issues().forEach(function(it){ if (it.shop) addItem(it); });
+  return list;
+}
+function reportLine(it){
+  var tag = it.status === 'alert' ? '즉시' : it.status === 'warn' ? '권장' : '예정';
+  return tag + ': ' + it.name + ' ' + recVerb(it) + ' (' + it.label.replace(/\s*\(.*\)$/, '') + ' ' + valText(it) + ')';
+}
+function reportText(list){
+  var d = new Date(), odo = state.ctx && state.ctx.odo != null ? km(state.ctx.odo) + 'km' : state.dataMode === 'demo' ? '48,210km' : '';
+  var lines = ['[차량 건강검진] ' + d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate() + (odo ? ' · ' + odo : '') + ' · 점수 ' + $('scoreVal').textContent];
+  list.forEach(function(it){ lines.push(reportLine(it)); });
+  var cost = [0, 0]; list.forEach(function(it){ if (it.costR){ cost[0] += it.costR[0]; cost[1] += it.costR[1]; } });
+  if (cost[1] > 0) lines.push('예상 ' + won(cost).replace(' ', ''));
+  if (state.dataMode === 'demo') lines.push('(예시 데이터)');
+  return lines.join('\n');
+}
+function qrSVG(text){
+  if (!window.qrcode) return null;
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+  var qr = qrcode(0, 'L'); qr.addData(text, 'Byte'); qr.make();
+  var n = qr.getModuleCount(), q = 4, d = '';
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) d += 'M' + (c + q) + ',' + (r + q) + 'h1v1h-1z';
+  return '<svg viewBox="0 0 ' + (n + q * 2) + ' ' + (n + q * 2) + '" shape-rendering="crispEdges" role="img" aria-label="진단서 QR 코드"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
+}
+function openReport(){
+  var list = reportItems();
+  state.sheet = 'report';
+  $('shTitle').textContent = '정비소에 보여 줄 진단서';
+  $('shSub').textContent = '휴대폰 카메라로 찍으면 진단 내용이 글자로 옮겨져요';
   var body = $('shBody'); body.innerHTML = '';
-  var shopLab = document.createElement('p'); shopLab.className = 'sh-lab'; shopLab.textContent = '가까운 정비소';
-  var opts = document.createElement('div'); opts.className = 'opts';
-  [['정비소 A', '1.2 km · 오늘 19:00부터'], ['정비소 B', '2.8 km · 내일 10:00부터']].forEach(function(o, i){
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
-    b.innerHTML = '<b></b><span></span>'; b.querySelector('b').textContent = o[0]; b.querySelector('span').textContent = o[1];
-    b.addEventListener('click', function(){ opts.querySelectorAll('.opt').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
-    opts.appendChild(b);
+  var wrap = document.createElement('div'); wrap.className = 'report';
+  var qr = document.createElement('div'); qr.className = 'qr';
+  var svg = null;
+  try { svg = qrSVG(reportText(list)); } catch (e) { if (Android && Android.log) Android.log('qr error: ' + e); }
+  if (svg) qr.innerHTML = svg; else qr.hidden = true;
+  var side = document.createElement('div');
+  var lst = document.createElement('div'); lst.className = 'rp-list';
+  var cost = [0, 0];
+  list.forEach(function(it){
+    var row = document.createElement('div');
+    var dot = document.createElement('i'); dot.className = 'sw'; dot.style.setProperty('--c', it.status === 'ok' ? 'var(--warn)' : CSSVAR[it.status]);
+    var t = document.createElement('span');
+    var b = document.createElement('b'); b.textContent = it.name + ' ' + recVerb(it);
+    var s = document.createElement('span'); s.textContent = (it.status === 'ok' ? '함께 하면 좋아요' : LABEL[it.status]) + ' · ' + it.label + ' ' + valText(it);
+    t.appendChild(b); t.appendChild(s); row.appendChild(dot); row.appendChild(t); lst.appendChild(row);
+    if (it.costR){ cost[0] += it.costR[0]; cost[1] += it.costR[1]; }
   });
-  var slotLab = document.createElement('p'); slotLab.className = 'sh-lab'; slotLab.textContent = '방문 시간';
+  if (!list.length){ var e = document.createElement('p'); e.className = 'empty'; e.textContent = '지금은 정비소에 맡길 일이 없어요'; lst.appendChild(e); }
+  side.appendChild(lst);
+  if (cost[1] > 0){ var tot = document.createElement('p'); tot.className = 'rp-total'; tot.innerHTML = '예상 비용 <b></b>'; tot.querySelector('b').textContent = won(cost); side.appendChild(tot); }
+  wrap.appendChild(qr); wrap.appendChild(side);
+  var note = document.createElement('p'); note.className = 'sh-note';
+  note.textContent = '정비사에게 화면을 보여 주거나, 찍은 글을 메시지로 보내세요. 차대번호나 위치 같은 개인 정보는 담지 않아요.';
+  body.appendChild(wrap); body.appendChild(note);
+  var foot = $('shFoot'); foot.innerHTML = '';
+  foot.appendChild(mkBtn('닫기', 'wide', closeSheet));
+  $('sheet').hidden = false;
+}
+
+/* Record sheet: when a part was last replaced. Wear and the next date are recalculated from that day. */
+var REC_WHEN = [[0, '오늘'], [30, '1개월 전'], [91, '3개월 전'], [182, '6개월 전'], [365, '1년 전'], [730, '2년 전']];
+function openRecord(it){
+  state.sheet = 'record';
+  var verb = recVerb(it);
+  $('shTitle').textContent = it.name + ' ' + verb + ' 기록';
+  $('shSub').textContent = '언제 ' + verb + '했는지 알려 주시면 남은 수명과 다음 시기를 다시 계산해요';
+  var body = $('shBody'); body.innerHTML = '';
+  var whenLab = document.createElement('p'); whenLab.className = 'sh-lab'; whenLab.textContent = '마지막 ' + verb;
   var slots = document.createElement('div'); slots.className = 'slots';
-  ['오늘 19:00', '내일 10:00', '내일 14:30', '모레 09:30'].forEach(function(s, i){
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'slot'; b.textContent = s; b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+  REC_WHEN.forEach(function(w, i){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'slot'; b.textContent = w[1]; b.dataset.days = w[0]; b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
     b.addEventListener('click', function(){ slots.querySelectorAll('.slot').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
     slots.appendChild(b);
   });
-  var note = document.createElement('p'); note.className = 'sh-note'; note.textContent = '진단 결과가 정비소에 함께 전달돼서 처음부터 다시 설명하지 않아도 돼요.';
-  body.appendChild(shopLab); body.appendChild(opts); body.appendChild(slotLab); body.appendChild(slots); body.appendChild(note);
+  var whereLab = document.createElement('p'); whereLab.className = 'sh-lab'; whereLab.textContent = '어디서 했나요';
+  var opts = document.createElement('div'); opts.className = 'opts';
+  [['shop', '정비소', '정비사가 했어요'], ['diy', '직접', '제가 했어요']].forEach(function(o, i){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.dataset.how = o[0]; b.setAttribute('aria-pressed', (it.diy ? i === 1 : i === 0) ? 'true' : 'false');
+    b.innerHTML = '<b></b><span></span>'; b.querySelector('b').textContent = o[1]; b.querySelector('span').textContent = o[2];
+    b.addEventListener('click', function(){ opts.querySelectorAll('.opt').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
+    opts.appendChild(b);
+  });
+  var note = document.createElement('p'); note.className = 'sh-note';
+  note.textContent = state.dataMode === 'demo' ? '예시 데이터에서는 화면에만 반영돼요.' : '차에서 받은 주행거리와 함께 기록해 두고, 앱을 켜지 않은 동안 달린 거리도 계산에 넣어요.';
+  body.appendChild(whenLab); body.appendChild(slots); body.appendChild(whereLab); body.appendChild(opts); body.appendChild(note);
   var foot = $('shFoot'); foot.innerHTML = '';
-  foot.appendChild(mkBtn('이 시간으로 예약', 'primary wide', function(){
-    var shop = opts.querySelector('[aria-pressed="true"] b').textContent, slot = slots.querySelector('[aria-pressed="true"]').textContent;
-    closeSheet(); toast('예시 화면이에요. 실제 서비스에서는 ' + shop + ' ' + slot + ' 예약이 확정돼요.');
+  foot.appendChild(mkBtn('기록하기', 'primary wide', function(){
+    var days = +slots.querySelector('[aria-pressed="true"]').dataset.days;
+    var how = opts.querySelector('[aria-pressed="true"]').dataset.how;
+    recordItem(it, days, days === 0 ? how : 'past');
   }));
   $('sheet').hidden = false;
 }
+$('recBtn').addEventListener('click', function(){ openRecord(byId[state.selected]); });
 function openDiy(it){
   state.sheet = 'diy';
   $('shTitle').textContent = it.name + ' 직접 ' + it.diy.verb;
@@ -631,21 +940,34 @@ function openDiy(it){
   var note = document.createElement('p'); note.className = 'sh-note'; note.textContent = '차종마다 순서가 조금 다를 수 있어요. 마치면 정비 기록에 남고, 다음 시기를 다시 계산해요.';
   body.appendChild(ol); body.appendChild(note);
   var foot = $('shFoot'); foot.innerHTML = '';
-  foot.appendChild(mkBtn(it.diy.btn, 'primary wide', function(){ completeDiy(it); }));
+  foot.appendChild(mkBtn(it.diy.btn, 'primary wide', function(){ recordItem(it, 0, 'diy'); }));
   $('sheet').hidden = false;
 }
-function completeDiy(it){
-  var d = it.diy.done;
-  Object.keys(d).forEach(function(k){ it[k] = d[k]; });
-  it.status = 'ok'; it.done = true;
-  var demo = DEMO_ITEMS.filter(function(x){ return x.id === it.id; })[0];
-  if (demo){ Object.keys(d).forEach(function(k){ demo[k] = d[k]; }); demo.status = 'ok'; demo.done = true; }
-  if (Android && Android.recordReplacement) { try { Android.recordReplacement(it.id); } catch (e) {} }
+/* Saves a replacement. Live: the app stores it with the odometer and the next vehicle update recalculates.
+   Demo: the same wear model runs on example usage so the screen shows the effect right away. */
+function recordItem(it, daysAgo, how){
+  var verb = recVerb(it);
+  var entry = { id:it.id, at:Date.now() - daysAgo * DAY, how:how };
+  if (state.dataMode === 'live'){
+    var c = state.ctx, odo = c && c.odo != null ? Math.max(0, c.odo - daysAgo * c.kmPerDay) : -1;
+    if (Android && Android.recordReplacement) { try { Android.recordReplacement(it.id, daysAgo, odo, how); } catch (e) { if (Android.log) Android.log('record error: ' + e); } }
+    if (c){ c.u.records = c.u.records || {}; c.u.records[it.id] = { at:entry.at, odo:odo >= 0 ? odo : undefined, hvac:c.u.hvacSeconds || 0, wiper:c.u.wiperSeconds || 0, brake:c.u.brakePresses || 0 }; applyModel(it, c); }
+  } else {
+    var fields = WEAR[it.id] ? WEAR[it.id](DEMO_CTX, demoSince(daysAgo)) : it.diy && it.diy.done;
+    if (fields){
+      Object.keys(fields).forEach(function(k){ it[k] = fields[k]; });
+      var demo = DEMO_ITEMS.filter(function(x){ return x.id === it.id; })[0];
+      if (demo) Object.keys(fields).forEach(function(k){ demo[k] = fields[k]; });
+    }
+    if (it.diy && daysAgo === 0) it.done = true;
+  }
+  state.log.push(entry);
+  if (state.dataMode === 'demo') DEMO_LOG.push(entry);
   closeSheet();
   renderAll();
-  toast(it.name + ' ' + it.diy.verb + ' 기록을 남겼어요');
+  toast(it.name + ' ' + verb + ' 기록을 남겼어요' + (typeof it.due === 'number' && it.due > 0.5 && it.due < 730 ? ' · 다음은 ' + dateText(Date.now() + it.due * DAY) + '경' : ''));
 }
-$('bookBtn').addEventListener('click', function(){ openBook(byId[state.selected]); });
+$('bookBtn').addEventListener('click', function(){ openReport(); });
 $('diyBtn').addEventListener('click', function(){ openDiy(byId[state.selected]); });
 
 /* ================= selection, modes ================= */
@@ -653,6 +975,7 @@ var focusHook = null, selectHook = null, driveHook = null;
 function select(id, opts){
   opts = opts || {};
   state.selected = id;
+  if (state.panel !== 'item') showPanel('item');
   renderDetail();
   if (selectHook) selectHook(id);
   if (opts.focus && focusHook) focusHook(byId[id]);
@@ -686,51 +1009,155 @@ function abnormal(v){
   if (/(^|_)(LOW|WARN|WARNING|EMPTY|ABNORMAL|ERROR|FAULT|CRITICAL)($|_)/.test(s)) return true;
   return false;
 }
-function wheelCode(name){
-  var s = String(name).toUpperCase();
-  var front = /FRONT|ROW_1/.test(s), rear = /REAR|ROW_2/.test(s), left = /LEFT/.test(s), right = /RIGHT/.test(s);
-  if (front && left) return 'FL'; if (front && right) return 'FR'; if (rear && left) return 'RL'; if (rear && right) return 'RR';
-  return null;
-}
-function liveSet(it, f){ Object.keys(f).forEach(function(k){ it[k] = f[k]; }); it.live = true; }
+function liveSet(it, f){ Object.keys(f).forEach(function(k){ it[k] = f[k]; }); it.live = true; it.na = false; }
 function restoreDemo(){
   DEMO_ITEMS.forEach(function(d){ var it = byId[d.id]; DATA_FIELDS.forEach(function(k){ if (k in d) it[k] = JSON.parse(JSON.stringify(d[k])); else delete it[k]; }); it.live = false; it.raw = null; });
 }
-function hours(sec){ return Math.round((sec || 0) / 360) / 10; }
+
+/* ================= wear model =================
+   The SDK has no pad thickness or filter state, so wear comes from use since the last replacement.
+   Usage per km (air-con hours, wiper hours, brake presses) is measured while the app runs and blended
+   with a typical value until enough distance is seen; the odometer then scales it to all driving,
+   including the time the app was closed. */
+var TYPICAL = { kmPerDay:38, hvacPerKm:0.024, wiperPerKm:0.0035, pressPerKm:0.6 };
+var PRIOR_KM = 200;
+function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+function round1(x){ return Math.round(x * 10) / 10; }
+function liveContext(d){
+  var u = d.usage || {}, now = u.now || Date.now();
+  var odo = typeof d.odometerKm === 'number' && d.odometerKm > 0 ? d.odometerKm : null;
+  var hist = (u.odoHistory || []).filter(function(x){ return x && typeof x.km === 'number' && x.day; });
+  var kmPerDay = TYPICAL.kmPerDay, measured = false;
+  if (hist.length >= 2){
+    var a = hist[Math.max(0, hist.length - 31)], b = hist[hist.length - 1];
+    var span = (Date.parse(b.day) - Date.parse(a.day)) / DAY;
+    if (span >= 3 && b.km > a.km){ kmPerDay = clamp((b.km - a.km) / span, 3, 400); measured = true; }
+  }
+  var obs = u.observedKm || 0;
+  function perKm(total, typical){ return (total + typical * PRIOR_KM) / (obs + PRIOR_KM); }
+  return { u:u, now:now, odo:odo, kmPerDay:kmPerDay, kmMeasured:measured, obs:obs,
+    hvacPerKm:perKm((u.hvacSeconds || 0) / 3600, TYPICAL.hvacPerKm),
+    wiperPerKm:perKm((u.wiperSeconds || 0) / 3600, TYPICAL.wiperPerKm),
+    pressPerKm:perKm(u.brakePresses || 0, TYPICAL.pressPerKm) };
+}
+/* Use since the item's last record, or since the app started tracking when there is none. */
+function sinceRecord(c, id){
+  var r = (c.u.records || {})[id], fromRecord = !!r;
+  if (!r) r = c.u.start || { at:c.now };
+  var days = Math.max(0, (c.now - r.at) / DAY);
+  var dist = c.odo != null && typeof r.odo === 'number' ? Math.max(0, c.odo - r.odo) : days * c.kmPerDay;
+  return { fromRecord:fromRecord, days:days, km:dist,
+    hvacH:Math.max(((c.u.hvacSeconds || 0) - (r.hvac || 0)) / 3600, dist * c.hvacPerKm),
+    wiperH:Math.max(((c.u.wiperSeconds || 0) - (r.wiper || 0)) / 3600, dist * c.wiperPerKm) };
+}
+function sinceWords(s, verb){ return s.fromRecord ? verb + ' 후' : '기록을 시작한 뒤'; }
+/* "N km를 달렸어요", or a plain note while a fresh install has nothing to report yet. */
+function distWords(s, verb){ return !s.fromRecord && s.km < 1 ? '이제 막 기록을 시작했어요.' : sinceWords(s, verb) + ' ' + km(s.km) + ' km를 달렸어요.'; }
+function noRecordHint(s, verb){ return s.fromRecord ? '' : ' 마지막 ' + verb + ' 시기를 기록하면 더 정확해져요.'; }
+/* Days until a usage limit, given usage per day; the calendar limit applies as well. */
+function daysTo(left, perDay, calendarLeft){ var d = perDay > 0 ? left / perDay : Infinity; return Math.min(d, calendarLeft); }
+function habit(c){
+  var f = c.pressPerKm / TYPICAL.pressPerKm;
+  if (c.obs < 30) return { f:1, text:'제동 습관은 앱을 켜고 30 km를 달리면 반영해요' + (c.obs >= 1 ? ' (지금 ' + Math.round(c.obs) + ' km).' : '.') };
+  var per = c.pressPerKm.toFixed(1) + '회';
+  if (f >= 1.25) return { f:f, text:'1 km당 제동이 ' + per + '로 평균보다 ' + round1(f) + '배 잦아요. 회생제동 단계를 높이면 패드를 더 오래 써요.' };
+  if (f <= 0.8) return { f:f, text:'1 km당 제동이 ' + per + '로 회생제동을 잘 쓰고 있어요. 패드가 평균보다 천천히 닳아요.' };
+  return { f:f, text:'1 km당 제동이 ' + per + '로 평균과 비슷해요.' };
+}
+function padModel(baseKm, front){
+  return function(c, s){
+    var h = habit(c), lifeKm = baseKm / clamp(h.f, 0.5, 2.5);
+    var life = clamp(1 - s.km / lifeKm, 0, 1);
+    var status = life < 0.1 ? 'alert' : life < 0.25 ? 'warn' : 'ok';
+    return { status:status, val:String(Math.round(life * 100)), unit:'%', life:life, due:(lifeKm * 0.9 - s.km) / c.kmPerDay,
+      short:status === 'alert' ? '교체 필요' : status === 'warn' ? '점검 권장' : '여유 있음',
+      why:distWords(s, '교체') + ' ' + (front ? h.text : '뒤 패드는 앞보다 제동 부담이 적어 천천히 닳아요.') + noRecordHint(s, '교체'),
+      act:status === 'alert' ? '이번 주 안에 정비소에서 교체하세요. 늦으면 디스크까지 상할 수 있어요.' : status === 'warn' ? '다음 정비소 방문 때 패드 두께를 확인하세요.' : '따로 할 일은 없어요.' };
+  };
+}
+var WEAR = {
+  brakeF:padModel(70000, true),
+  brakeR:padModel(110000, false),
+  cabinFilter:function(c, s){
+    var wear = Math.max(s.hvacH / 300, s.days / 365), status = wear >= 1.1 ? 'alert' : wear >= 0.9 ? 'warn' : 'ok';
+    return { status:status, val:String(Math.round(s.hvacH)), unit:'시간', life:clamp(1 - wear, 0, 1), due:daysTo(300 - s.hvacH, c.hvacPerKm * c.kmPerDay, 365 - s.days),
+      short:status === 'ok' ? '여유 있음' : '교체 시기',
+      why:sinceWords(s, '교체') + ' 공조를 약 ' + Math.round(s.hvacH) + '시간 썼어요' + (s.days >= 300 ? ', 시간도 ' + Math.round(s.days / 30.4) + '개월 지났어요.' : '.') + noRecordHint(s, '교체'),
+      act:status === 'ok' ? '따로 할 일은 없어요.' : '직접 교체할 수 있어요. 글로브박스를 열고 안쪽 덮개를 빼면 필터가 나와요.' };
+  },
+  wiper:function(c, s){
+    var wear = Math.max(s.wiperH / 100, s.days / 365), status = wear >= 1.1 ? 'alert' : wear >= 0.9 ? 'warn' : 'ok';
+    return { status:status, val:String(round1(s.wiperH)), unit:'시간', life:clamp(1 - wear, 0, 1), due:daysTo(100 - s.wiperH, c.wiperPerKm * c.kmPerDay, 365 - s.days),
+      short:status === 'ok' ? '여유 있음' : '교체 시기',
+      why:sinceWords(s, '교체') + ' 와이퍼를 약 ' + round1(s.wiperH) + '시간 썼어요. 고무는 햇빛에도 굳어서 1년이 지나면 바꾸는 게 좋아요.' + noRecordHint(s, '교체'),
+      act:status === 'ok' ? '유리에 줄무늬가 남기 시작하면 교체하세요.' : '새 블레이드로 교체하세요. 직접 5분이면 돼요.' };
+  },
+  tire:function(c, s){
+    var wear = Math.max(s.km / 10000, s.days / 365), status = wear >= 0.9 ? 'warn' : 'ok';
+    return { status:status, val:km(s.km), unit:'km', life:clamp(1 - wear, 0, 1), due:daysTo(10000 - s.km, c.kmPerDay, 365 - s.days),
+      short:status === 'ok' ? '여유 있음' : '교환 시기',
+      why:distWords(s, '위치 교환') + ' 전기차는 무거워서 앞바퀴가 더 빨리 닳아요.' + noRecordHint(s, '위치 교환'),
+      act:status === 'ok' ? '1만 km마다 앞뒤 위치를 바꾸면 타이어를 더 오래 써요.' : '다음 정비소 방문 때 앞뒤 위치를 바꾸세요.' };
+  }
+};
+/* Example usage for the demo, so recording a replacement there shows the same model at work. */
+var DEMO_CTX = { kmPerDay:42, hvacPerKm:TYPICAL.hvacPerKm, wiperPerKm:TYPICAL.wiperPerKm, pressPerKm:0.96, obs:640 };
+function demoSince(days){ var d = days * DEMO_CTX.kmPerDay; return { fromRecord:true, days:days, km:d, hvacH:d * DEMO_CTX.hvacPerKm, wiperH:d * DEMO_CTX.wiperPerKm }; }
+function applyModel(it, c){
+  var f = WEAR[it.id](c, sinceRecord(c, it.id));
+  f.ref = DEMO_ITEMS.filter(function(x){ return x.id === it.id; })[0].ref;
+  f.raw = null;
+  liveSet(it, f);
+}
+function batteryTrend(v, hist){
+  var val = round1(v), f = { status:'ok', val:String(val), unit:'', label:'누적 전비 (차량 단위)', trend:hist.length > 1 ? hist : null, raw:String(v), short:'전비 확인 중',
+    refVal:hist.length ? hist[0] : v, refLab:'처음 ' + round1(hist.length ? hist[0] : v), span:hist.length + '일 전',
+    ref:hist.length > 1 ? '기록 ' + hist.length + '일' : '기록을 모으는 중이에요', why:'차가 보낸 누적 전비를 매일 기록해 변화를 지켜봐요.', act:'전비가 눈에 띄게 떨어지면 알려 드릴게요.' };
+  if (hist.length < 14) return f;
+  function mean(a){ return a.reduce(function(s, x){ return s + x; }, 0) / a.length; }
+  var base = mean(hist.slice(0, 7)), now = mean(hist.slice(-7));
+  var drop = (base - now) / base;
+  f.refVal = base; f.refLab = '처음 ' + round1(base);
+  f.ref = hist.length + '일 전보다 ' + (drop >= 0 ? Math.round(drop * 100) + '% 낮아요' : Math.round(-drop * 100) + '% 높아요');
+  if (drop >= 0.12){
+    f.status = 'warn'; f.short = '전비 ' + Math.round(drop * 100) + '% 하락';
+    f.why = hist.length + '일 사이에 전비가 ' + Math.round(drop * 100) + '% 떨어졌어요. 겨울철 난방이나 타이어 공기압 때문일 수도 있어요.';
+    f.act = '공기압을 먼저 확인하고, 날씨가 풀려도 그대로면 서비스센터에서 배터리 상태를 점검하세요.';
+  } else { f.short = '전비 안정적'; }
+  return f;
+}
 function applyLive(d){
   var v = d.values || {}, u = d.usage || {}, n = 0;
+  var c = liveContext(d);
+  state.ctx = c;
+  state.log = (u.log || []).slice();
+  state.basis = c.kmMeasured ? '최근 기록의 하루 평균 ' + Math.round(c.kmPerDay) + ' km 주행 기준' : '하루 평균 ' + TYPICAL.kmPerDay + ' km(국내 평균) 주행 기준';
+  ITEMS.forEach(function(it){ it.live = false; });
   if ('washerLow' in v){ n++; var wl = abnormal(v.washerLow);
-    liveSet(byId.washer, wl ? { status:'warn', val:'부족', ref:'보충이 필요해요', short:'보충 필요', why:'차에서 와셔액 부족 경고를 보냈어요.', act:'보닛 안쪽의 유리창 그림이 있는 탱크에 와셔액을 채우세요.', raw:String(v.washerLow) }
-                          : { status:'ok', val:'정상', ref:'경고 없음', short:'정상', why:'와셔액 부족 경고가 없어요.', act:'따로 할 일은 없어요.', raw:String(v.washerLow) }); }
+    liveSet(byId.washer, wl ? { status:'warn', val:'부족', ref:'보충이 필요해요', short:'보충 필요', due:0, why:'차에서 와셔액 부족 경고를 보냈어요.', act:'보닛 안쪽의 유리창 그림이 있는 탱크에 와셔액을 채우세요.', raw:String(v.washerLow) }
+                          : { status:'ok', val:'정상', ref:'경고 없음', short:'정상', due:null, why:'와셔액 부족 경고가 없어요.', act:'따로 할 일은 없어요.', raw:String(v.washerLow) }); }
   if ('brakeFluid' in v){ n++; var bl = abnormal(v.brakeFluid);
-    liveSet(byId.brakeFluid, bl ? { status:'alert', val:'부족', short:'수위 낮음', why:'차에서 브레이크액 수위가 낮다고 보냈어요.', act:'안전한 곳에 정차한 뒤 정비소에 점검을 맡기세요.', raw:String(v.brakeFluid), book:true }
+    liveSet(byId.brakeFluid, bl ? { status:'alert', val:'부족', short:'수위 낮음', why:'차에서 브레이크액 수위가 낮다고 보냈어요.', act:'안전한 곳에 정차한 뒤 정비소에 점검을 맡기세요.', raw:String(v.brakeFluid) }
                               : { status:'ok', val:'정상', short:'수위 정상', why:'브레이크액 수위가 정상이에요.', act:'정기 점검 때 함께 확인하면 돼요.', raw:String(v.brakeFluid) }); }
   if ('transOil' in v){ n++; var tl = abnormal(v.transOil);
-    liveSet(byId.reducer, tl ? { status:'warn', val:'점검', short:'수위 이상', why:'차에서 감속기(변속기) 오일 수위 이상을 보냈어요.', act:'정비소에서 오일 상태를 점검하세요.', raw:String(v.transOil), book:true }
+    liveSet(byId.reducer, tl ? { status:'warn', val:'점검', short:'수위 이상', why:'차에서 감속기(변속기) 오일 수위 이상을 보냈어요.', act:'정비소에서 오일 상태를 점검하세요.', raw:String(v.transOil) }
                              : { status:'ok', val:'정상', short:'수위 정상', why:'감속기 오일 수위가 정상이에요.', act:'따로 할 일은 없어요.', raw:String(v.transOil) }); }
-  var low = [], seen = 0;
-  Object.keys(v).forEach(function(k){ if (k.indexOf('lowTire_') === 0){ seen++; var c = wheelCode(k.slice(8)); if (c && abnormal(v[k]) && low.indexOf(c) < 0) low.push(c); } });
-  if (seen){ n++;
-    var names = low.map(function(c){ return WHEEL_KO[c]; }).join(', ');
-    liveSet(byId.tireLow, low.length ? { status:'warn', val:'저압', zone:names, ref:names + ' 바퀴에서 경고', short:names + ' 저압', lowWheels:low, why:names + ' 바퀴에서 저압 경고가 들어왔어요.', act:'공기압을 맞추고, 경고가 다시 뜨면 펑크 점검을 받으세요.', raw:low.join(',') }
-                                    : { status:'ok', val:'정상', zone:'네 바퀴', ref:'저압 경고 없음', short:'정상', lowWheels:[], why:'네 바퀴 모두 저압 경고가 없어요.', act:'한 달에 한 번 공기압을 확인하면 좋아요.', raw:'없음' }); }
+  if ('powerDown' in v){ n++; var pd = v.powerDown === true || abnormal(v.powerDown);
+    liveSet(byId.motor, pd ? { status:'alert', val:'경고', ref:'출력 제한 중', short:'출력 제한', why:'차에서 구동 계통 출력 제한 경고를 보냈어요. 모터·인버터나 배터리 온도 이상일 수 있어요.', act:'안전한 곳에 정차하고 서비스센터에 점검을 맡기세요.', raw:String(v.powerDown) }
+                           : { status:'ok', val:'정상', ref:'경고 없음', short:'경고 없음', why:'모터와 인버터에서 출력 제한 경고가 없어요.', act:'따로 할 일은 없어요.', raw:String(v.powerDown) }); }
   if (typeof v.evEfficiency === 'number'){ n++;
-    var hist = (u.efficiencyHistory || []).filter(function(x){ return typeof x === 'number'; });
-    liveSet(byId.hvBattery, { status:'ok', val:(Math.round(v.evEfficiency * 10) / 10).toString(), unit:'', label:'누적 전비 (차량 단위)', ref:hist.length > 1 ? '기록 ' + hist.length + '일' : '기록을 모으는 중이에요', short:'전비 확인 중', trend:hist.length > 1 ? hist : null, why:'차가 보낸 누적 전비를 매일 기록해 변화를 지켜봐요.', act:'전비가 눈에 띄게 떨어지면 알려 드릴게요.', raw:String(v.evEfficiency) }); }
-  if (typeof u.hvacSeconds === 'number'){ n++;
-    var hh = hours(u.hvacSeconds), lf = Math.max(0, 1 - hh / 300);
-    liveSet(byId.cabinFilter, { status:hh >= 330 ? 'alert' : hh >= 270 ? 'warn' : 'ok', val:String(hh), unit:'시간', ref:'교체 기준 300시간', life:lf, short:hh >= 270 ? '교체 시기 임박' : '여유 있음', why:'교체 후 공조를 ' + hh + '시간 썼어요. 앱이 켜져 있는 동안 기록해요.', act:hh >= 270 ? '직접 교체할 수 있어요. 글로브박스 안쪽에 있어요.' : '따로 할 일은 없어요.', raw:null }); }
-  if (typeof u.wiperSeconds === 'number'){ n++;
-    var wh = hours(u.wiperSeconds), wlf = Math.max(0, 1 - wh / 100);
-    liveSet(byId.wiper, { status:wh >= 110 ? 'alert' : wh >= 90 ? 'warn' : 'ok', val:String(wh), unit:'시간', ref:'교체 기준 100시간', life:wlf, short:wh >= 90 ? '교체 시기' : '여유 있음', why:'교체 후 와이퍼를 ' + wh + '시간 썼어요. 앱이 켜져 있는 동안 기록해요.', act:wh >= 90 ? '새 블레이드로 교체하세요.' : '따로 할 일은 없어요.', raw:null }); }
-  if (typeof u.brakePresses === 'number'){ n++;
-    var fp = Math.max(0, 1 - u.brakePresses / 40000), rp = Math.max(0, 1 - u.brakePresses / 90000);
-    liveSet(byId.brakeF, { status:fp < 0.1 ? 'alert' : fp < 0.25 ? 'warn' : 'ok', val:String(Math.round(fp * 100)), life:fp, short:fp < 0.1 ? '교체 필요' : fp < 0.25 ? '점검 권장' : '여유 있음', why:'교체 후 브레이크를 ' + u.brakePresses + '번 밟았어요. 제동 횟수로 마모를 추정해요.', act:fp < 0.25 ? '정비소에서 패드 두께를 확인하세요.' : '따로 할 일은 없어요.', raw:null });
-    liveSet(byId.brakeR, { status:rp < 0.1 ? 'alert' : rp < 0.25 ? 'warn' : 'ok', val:String(Math.round(rp * 100)), life:rp, short:rp < 0.25 ? '점검 권장' : '여유 있음', why:'뒤 패드는 앞보다 천천히 닳아요. 제동 횟수로 추정해요.', act:rp < 0.25 ? '정비소에서 패드 두께를 확인하세요.' : '따로 할 일은 없어요.', raw:null }); }
+    liveSet(byId.hvBattery, batteryTrend(v.evEfficiency, (u.efficiencyHistory || []).filter(function(x){ return typeof x === 'number'; }))); }
+  /* Wear items need either the odometer or their own usage signal. */
+  var hasOdo = c.odo != null;
+  if (hasOdo || typeof u.brakePresses === 'number'){ n += 2; applyModel(byId.brakeF, c); applyModel(byId.brakeR, c); }
+  if (hasOdo || typeof u.hvacSeconds === 'number'){ n++; applyModel(byId.cabinFilter, c); }
+  if (hasOdo || typeof u.wiperSeconds === 'number'){ n++; applyModel(byId.wiper, c); }
+  if (hasOdo){ n++; applyModel(byId.tire, c);
+    if (typeof v.tireThreshold === 'number') byId.tire.act += ' 이 차는 공기압이 ' + Math.round(v.tireThreshold) + ' kPa(' + Math.round(v.tireThreshold * 0.145) + ' psi) 아래로 내려가면 계기판에 경고를 띄워요.'; }
   ITEMS.forEach(function(it){
     if (it.live) return;
-    liveSet(it, { status:'ok', val:'—', unit:'', ref:'차에서 값을 받지 못했어요', short:'데이터 없음', life:null, trend:null, lowWheels:[], why:'이 차에서는 아직 이 값을 받지 못했어요. Vehicle SDK가 이 항목을 지원하는지 확인하세요.', act:'예시 데이터로 보기를 누르면 시연용 화면을 볼 수 있어요.', cost:'', raw:null });
-    it.live = false;
+    liveSet(it, { status:'ok', val:'—', unit:'', ref:'차에서 값을 받지 못했어요', short:'데이터 없음', life:null, trend:null, due:null, why:'이 차에서는 아직 이 값을 받지 못했어요. 차종에 따라 제공하지 않는 값일 수 있어요.', act:'예시 데이터로 보기를 누르면 시연용 화면을 볼 수 있어요.', raw:null });
+    it.live = false; it.na = true;
   });
   return n;
 }
@@ -764,10 +1191,12 @@ function applyVehicleData(d){
   var after = issues().map(function(it){ return it.id + it.status; });
   var fresh = after.some(function(k){ return before.indexOf(k) < 0; });
   if (fresh && $('scanline').classList.contains('done') && !state.sheet) showBanner();
+  else if (after.join() !== before.join() && !$('banner').hidden){ if (state.drive) hideBanner(); else showBanner(); }
 }
 function setDataMode(mode){
   state.dataMode = mode;
   restoreDemo();
+  if (mode === 'demo'){ state.basis = DEMO_BASIS; state.log = DEMO_LOG.slice(); state.ctx = null; }
   if (mode === 'demo') $('odoLine').innerHTML = '누적 주행 <b>48,210</b> km';
   if (mode === 'live' && state.lastVehicle) applyVehicleData(state.lastVehicle);
   refreshLiveBadge(liveCount);
@@ -1157,10 +1586,8 @@ var mats = {
   var x = w[0], s = w[1], front = x > 0;
   var g = new THREE.Group(); g.position.set(x, 0.36, s * 0.8); car.add(g);
   var inner = new THREE.Group(); if (s < 0) inner.rotation.y = Math.PI; g.add(inner);
-  var wcode = (front ? 'F' : 'R') + (s < 0 ? 'L' : 'R');
-  var tmat = im('tireLow', MAT.rubber); tmat.userData.wheel = wcode;
-  var tire = add(inner, TIRE_GEO, tmat, null, null, 'tireLow');
-  byId.tireLow.anchorObjs.push(tire); byId.tireLow.anchorWheel.push(wcode);
+  var tire = add(inner, TIRE_GEO, im('tire', MAT.rubber), null, null, 'tire');
+  byId.tire.anchorObjs.push(tire);
   var rim = new THREE.Group(); inner.add(rim);
   add(rim, BARREL_GEO, MAT.chrome, null, [Math.PI / 2, 0, 0]);
   add(rim, LIP_GEO, MAT.chrome, [0, 0, 0.1]);
@@ -1190,11 +1617,12 @@ byId.hvBattery.anchorObjs.push(pack);
 var cellGeo = rbox(0.225, 0.05, 0.4, 0.012);
 for (var ci = 0; ci < 8; ci++) for (var ck = 0; ck < 3; ck++) add(car, cellGeo, hvCell, [-0.99 + ci * 0.268, 0.325, -0.45 + ck * 0.45], null, 'hvBattery');
 
-var motorMat = MAT.steel, invMat = MAT.graph, redMat = im('reducer', MAT.graph);
+var motorMat = im('motor', MAT.steel), invMat = MAT.graph, redMat = im('reducer', MAT.graph);
 [1.45, -1.45].forEach(function(x){
   var g = new THREE.Group(); g.position.set(x, 0.4, 0); car.add(g);
-  var body = add(g, new THREE.CylinderGeometry(0.15, 0.15, 0.34, 32), motorMat, [0, 0, -0.08], [Math.PI / 2, 0, 0]);
-  for (var k = 0; k < 5; k++) add(g, new THREE.TorusGeometry(0.152, 0.008, 6, 32), motorMat, [0, 0, -0.22 + k * 0.07]);
+  var body = add(g, new THREE.CylinderGeometry(0.15, 0.15, 0.34, 32), motorMat, [0, 0, -0.08], [Math.PI / 2, 0, 0], 'motor');
+  for (var k = 0; k < 5; k++) add(g, new THREE.TorusGeometry(0.152, 0.008, 6, 32), motorMat, [0, 0, -0.22 + k * 0.07], null, 'motor');
+  byId.motor.anchorObjs.push(body);
   add(g, rbox(0.34, 0.09, 0.36, 0.02), invMat, [0, 0.2, -0.06]);
   var gb = add(g, rbox(0.3, 0.28, 0.18, 0.03), redMat, [0, -0.01, 0.17], null, 'reducer');
   byId.reducer.anchorObjs.push(gb);
@@ -1298,20 +1726,10 @@ function resize(){
 onScale = resize;
 driveHook = function(on){ if (!on) resize(); };
 function easeIO(t){ return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-var WHEEL_VIEW = { FL:[0.55,0.32,-1], FR:[0.55,0.32,1], RL:[-0.55,0.32,-1], RR:[-0.55,0.32,1] };
-function activeAnchors(it){
-  if (it.id === 'tireLow' && it.lowWheels && it.lowWheels.length){
-    var list = [];
-    it.anchors.forEach(function(a, i){ if (it.lowWheels.indexOf(it.anchorWheel[i]) >= 0) list.push(a); });
-    if (list.length) return list;
-  }
-  return it.anchors;
-}
 focusHook = function(it){
   if (state.drive || state.compact) return;
   var view = it.view;
-  if (it.id === 'tireLow' && it.lowWheels && it.lowWheels.length) view = WHEEL_VIEW[it.lowWheels[0]] || view;
-  var cands = activeAnchors(it);
+  var cands = it.anchors;
   var dir0 = new V3().fromArray(view).normalize();
   var best = cands[0], bd = Infinity;
   cands.forEach(function(p){ var d = -p.dot(dir0); if (d < bd){ bd = d; best = p; } });
@@ -1354,10 +1772,9 @@ function applyVisual(it, t){
   if (revealed && it.status === 'alert'){ col = COL.alert; inten = reduce ? 0.5 : 0.32 + 0.36 * Math.pow(0.5 + 0.5 * Math.sin(t * 3.4), 2); tint = 0.35; }
   else if (revealed && it.status === 'warn'){ col = COL.warn; inten = 0.3; tint = 0.28; }
   if (sel && revealed){ if (!col){ col = COL.ok; tint = 0.3; } inten = Math.max(inten, 0.3) + 0.06; }
-  var wheelLimited = it.id === 'tireLow' && it.status !== 'ok' && it.lowWheels && it.lowWheels.length;
   for (var i = 0; i < it.mats.length; i++){
     var m = it.mats[i];
-    var on = !!col && (!wheelLimited || it.lowWheels.indexOf(m.userData.wheel) >= 0);
+    var on = !!col;
     var metal = m.metalness > 0.5;
     if (on){ m.emissive.copy(col); m.emissiveIntensity = (metal ? inten : inten + 0.1) * 1.35; m.color.copy(m.userData.base).lerp(col, metal ? tint : tint * 0.3); }
     else { m.emissive.setRGB(0, 0, 0); m.emissiveIntensity = 0; m.color.copy(m.userData.base); }
@@ -1365,7 +1782,7 @@ function applyVisual(it, t){
   var showHalo = revealed && (it.status !== 'ok' || sel);
   for (var h = 0; h < it.halos.length; h++){
     var sp = it.halos[h];
-    var vis = showHalo && (!wheelLimited || it.lowWheels.indexOf(it.anchorWheel[h]) >= 0);
+    var vis = showHalo;
     sp.visible = vis;
     if (!vis) continue;
     sp.material.color.copy(col || COL.ok);
@@ -1383,7 +1800,7 @@ var tagEl = $('tag'), tagReady = reduce, pv = new V3();
 function updateTag(){
   var it = byId[state.selected];
   if (!tagReady || !it){ tagEl.hidden = true; return; }
-  var cands = activeAnchors(it), best = cands[0], bd = Infinity;
+  var cands = it.anchors, best = cands[0], bd = Infinity;
   cands.forEach(function(a){ var d = a.distanceToSquared(camera.position); if (d < bd){ bd = d; best = a; } });
   pv.copy(best).project(camera);
   if (pv.z > 1 || pv.z < -1){ tagEl.hidden = true; return; }

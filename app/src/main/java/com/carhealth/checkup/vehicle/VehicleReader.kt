@@ -42,13 +42,15 @@ import kotlin.reflect.full.declaredMemberFunctions
  * shows "데이터 없음" for that item.
  *
  * Values read (all public, read-only):
- *  Safety   getBrakeFluidLevelState, hasLowWasherFluidWarning, getTransmissionOilLevelState
- *  Tire     getLowTirePressure (per wheel)
- *  Odometer getTripCumulativeDrivingDistance
- *  EvBattery getCumulativeEvEfficiency, getEvBatteryStateOfCharge
- *  HVAC     getHvacPowerState, getHvacFanSpeed (air-conditioning hours for the cabin filter)
- *  Wiper    getCurrentWiperState (wiper hours)
- *  Brake    registerBrakePedalStatus (press count for the pad-wear estimate)
+ *  Safety   getBrakeFluidLevelState, hasLowWasherFluidWarning, getTransmissionOilLevelState,
+ *           hasPowerDownWarningIndicator (drive power limited)                        CAR_SAFETY
+ *  Tire     getLowTirePressure (the car's low-pressure threshold in kPa, not a warning) CAR_SAFETY
+ *  Odometer getCurrentDistanceDriven (km), getTripCumulativeDrivingDistance (m) as fallback  CAR_DRIVE
+ *  EvBattery getCumulativeEvEfficiency, getEvBatteryStateOfCharge                     CAR_ENERGY
+ *  HVAC     getHvacPowerState, getHvacFanSpeed (air-conditioning hours for the cabin filter),
+ *           on the first area the car reports in checkHvac*Capabilities              CAR_CLIMATE
+ *  Wiper    getCurrentWiperState (wiper hours)                                       CAR_WINDOWS
+ *  Brake    registerBrakePedalStatus (press count for the pad-wear estimate)         CAR_DRIVE
  */
 class VehicleReader(
     context: Context,
@@ -68,6 +70,9 @@ class VehicleReader(
     private var status = ""
     private var brakeListener: Any? = null
     private var lastBrakePressed: Boolean? = null
+    private var lastOdometerKm: Double? = null
+    private var hvacPowerArea: Any? = null
+    private var hvacFanArea: Any? = null
 
     private val publishTask = Runnable { publish() }
     private val pollTask = object : Runnable {
@@ -96,7 +101,10 @@ class VehicleReader(
             Log.w(TAG, "Vehicle SDK is not available on this device", t)
             false
         }
-        if (connected) registerBrakePedal()
+        if (connected) {
+            registerBrakePedal()
+            findHvacAreas()
+        }
         publish()
         resume()
     }
@@ -137,21 +145,22 @@ class VehicleReader(
         read("brakeFluid", safety, Safety::class, "getBrakeFluidLevelState")
         read("washerLow", safety, Safety::class, "hasLowWasherFluidWarning")
         read("transOil", safety, Safety::class, "getTransmissionOilLevelState")
+        read("powerDown", safety, Safety::class, "hasPowerDownWarningIndicator")
 
-        val tire = v.getTire()
-        WheelValue.entries.forEach { wheel ->
-            read("lowTire_${wheel.name}", tire, Tire::class, "getLowTirePressure", WheelArea(wheel))
-        }
+        // The public tire API only gives the car's warning threshold; actual pressure is privileged.
+        read("tireThreshold", v.getTire(), Tire::class, "getLowTirePressure", WheelArea(WheelValue.LEFT_FRONT))
 
-        read("odometer", v.getOdometer(), Odometer::class, "getTripCumulativeDrivingDistance")
+        val odometer = v.getOdometer()
+        read("odometer", odometer, Odometer::class, "getCurrentDistanceDriven")
+        if (errors.containsKey("odometer")) read("tripMeters", odometer, Odometer::class, "getTripCumulativeDrivingDistance")
 
         val battery = v.getEvBattery()
         read("evEfficiency", battery, EvBattery::class, "getCumulativeEvEfficiency")
         read("soc", battery, EvBattery::class, "getEvBatteryStateOfCharge")
 
         val hvac = v.getHVAC()
-        read("hvacPower", hvac, HVAC::class, "getHvacPowerState")
-        read("fanSpeed", hvac, HVAC::class, "getHvacFanSpeed")
+        read("hvacPower", hvac, HVAC::class, "getHvacPowerState", hvacPowerArea)
+        read("fanSpeed", hvac, HVAC::class, "getHvacFanSpeed", hvacFanArea)
 
         read("wiper", v.getWiper(), Wiper::class, "getCurrentWiperState")
 
@@ -160,6 +169,37 @@ class VehicleReader(
         if (isActive(values["hvacPower"]) || isActive(values["fanSpeed"])) usage.addHvacSeconds(seconds)
         if (isActive(values["wiper"])) usage.addWiperSeconds(seconds)
         (values["evEfficiency"] as? Number)?.let { usage.recordEfficiency(it.toDouble()) }
+        odometerKm()?.let { km ->
+            val step = lastOdometerKm?.let { km - it }
+            // Larger jumps are a reset or a long gap, not distance the app watched.
+            if (step != null && step > 0.0 && step < MAX_OBSERVED_STEP_KM) usage.addObservedKm(step)
+            lastOdometerKm = km
+            usage.recordOdometer(km)
+        }
+    }
+
+    private fun odometerKm(): Double? {
+        val km = (values["odometer"] as? Number)?.toDouble()
+            ?: (values["tripMeters"] as? Number)?.toDouble()?.div(1000.0)
+            ?: return null
+        return km.takeIf { !it.isNaN() && !it.isInfinite() && it >= 0.0 }
+    }
+
+    /** HVAC values are per seat area, and cars differ in which areas they report. */
+    private fun findHvacAreas() {
+        val hvac = vehicle?.getHVAC() ?: return
+        invoke(hvac, HVAC::class, "checkHvacPowerCapabilities", null,
+            onValue = { result -> hvacPowerArea = firstArea(result) },
+            onError = { error -> Log.i(TAG, "checkHvacPowerCapabilities: ${error.message}") })
+        invoke(hvac, HVAC::class, "checkHvacFanSpeedCapabilities", null,
+            onValue = { result -> hvacFanArea = firstArea(result) },
+            onError = { error -> Log.i(TAG, "checkHvacFanSpeedCapabilities: ${error.message}") })
+    }
+
+    private fun firstArea(result: Any?): Any? = when (result) {
+        is Map<*, *> -> result.keys.firstOrNull { it is SeatArea }
+        is Collection<*> -> result.firstOrNull { it is SeatArea }
+        else -> null
     }
 
     private fun publish() {
@@ -175,8 +215,7 @@ class VehicleReader(
         for ((key, message) in errors) errorJson.put(key, message)
         root.put("errors", errorJson)
 
-        val odometer = (values["odometer"] as? Number)?.toDouble()
-        if (odometer != null && !odometer.isNaN() && !odometer.isInfinite()) root.put("odometerKm", odometer)
+        odometerKm()?.let { root.put("odometerKm", it) }
 
         val hasHvac = values.containsKey("hvacPower") || values.containsKey("fanSpeed")
         root.put("usage", usage.toJson(hasHvac, values.containsKey("wiper"), brakeListener != null))
@@ -357,7 +396,8 @@ class VehicleReader(
         val value = args.lastOrNull() ?: return
         values["brakePedal"] = value
         val pressed = isActive(value)
-        if (pressed && lastBrakePressed == false) usage.addBrakePress()
+        // Counted only while polling, so presses and observed distance cover the same time.
+        if (pressed && lastBrakePressed == false && running) usage.addBrakePress()
         lastBrakePressed = pressed
     }
 
@@ -421,6 +461,7 @@ class VehicleReader(
         private const val TAG = "CarHealth"
         private const val POLL_INTERVAL_MS = 5_000L
         private const val PUBLISH_DELAY_MS = 1_200L
+        private const val MAX_OBSERVED_STEP_KM = 1.0
         private const val LISTENER_PACKAGE = "ai.pleos.playground.vehicle.listener."
         private val PREFERRED_AREAS = setOf("ROW_1_LEFT", "FRONT_LEFT", "FRONT_WINDSHIELD")
         private val INACTIVE_WORDS = listOf("OFF", "FALSE", "NONE", "STOP", "RELEASE", "NOT_", "IDLE", "UNKNOWN", "INACTIVE")

@@ -3,6 +3,12 @@
 차가 보내는 데이터로 교체·점검이 필요한 부품을 3D 투시 화면에 표시하는 Pleos Connect 앱이에요.
 정차 중에는 3D 모델과 상세 정보를, 주행 중이거나 화면을 반으로 나눴을 때는 가장 급한 항목 한 장만 보여 줘요.
 
+- **정비 계획**: 내 주행 패턴(하루 주행거리, 1 km당 공조·와이퍼 사용, 제동 습관)으로 부품마다 다음 교체 날짜를 예측하고,
+  앞으로 90일 타임라인과 예상 비용을 보여 줘요. 가까운 시기의 정비는 한 번의 정비소 방문으로 묶어 제안해요.
+- **정비소 진단서**: 다음 방문 때 할 일을 QR 코드로 보여 줘요. 휴대폰 카메라로 찍으면 진단 내용이 글자로 옮겨져서
+  정비사에게 보여 주거나 메시지로 보낼 수 있어요. 차대번호나 위치는 담지 않아요.
+- **교체 기록**: 마지막 교체 시기를 입력하면 그날의 주행거리를 기준으로 남은 수명과 다음 시기를 다시 계산해요.
+
 ## 1. 준비
 
 - 최신 Android Studio (Android SDK Platform 35, 내장 JDK 17)
@@ -37,6 +43,8 @@
 
 - 차량에 연결되면 차에서 받은 값으로 화면이 바뀌어요. 에뮬레이터 값이 모두 정상이면
   화면 오른쪽 위 **예시 데이터로 보기**를 눌러 시연 시나리오(앞 브레이크 패드 교체 등)를 보여 줄 수 있어요.
+- 시연 순서 추천: 진단 스캔 → 앞 브레이크 패드(제동 습관 설명) → 점수 아래 **정비 계획** 카드
+  → "한 번에 하세요" 묶음 제안 → **정비소에 보여 줄 진단서**(휴대폰으로 QR 찍기) → 에어컨 필터 **교체 기록** 입력 후 다음 시기가 바뀌는 것 보여 주기
 - 주행 상태 바꾸기 (Virtual Console)
   1. 터미널에서 `adb forward tcp:8088 tcp:8088`
   2. 브라우저에서 `http://127.0.0.1:8088/` 접속 → 속도나 기어를 바꾸면 앱이 주행 중 요약 카드로 바뀌어요.
@@ -50,17 +58,25 @@
 | `MainActivity.kt` | WebView와 자바스크립트 브리지, 음성 안내(Pleos TTS SDK, 차량 음성 엔진 사용) |
 | `vehicle/VehicleReader.kt` | Vehicle SDK에서 값 읽기 (5초마다) |
 | `vehicle/DrivingStateMonitor.kt` | 플랫폼의 주행 중 제한 신호(CarUxRestrictions) |
-| `vehicle/UsageStore.kt` | 공조·와이퍼 사용 시간, 제동 횟수, 전비 기록 누적 |
+| `vehicle/UsageStore.kt` | 공조·와이퍼 사용 시간, 제동 횟수, 앱이 지켜본 주행거리, 날짜별 주행거리·전비, 교체 기록 누적 |
 
-SDK에서 읽는 값: 브레이크액 수위, 와셔액 부족 경고, 변속기 오일 수위, 바퀴별 저압 경고, 누적 주행거리,
-누적 전비와 충전량, 공조 전원과 팬 속도, 와이퍼 상태, 브레이크 페달 상태.
-SDK에 없는 값(패드 두께, 필터 상태)은 사용 시간과 제동 횟수로 추정해요.
+SDK에서 읽는 값: 브레이크액 수위, 와셔액 부족 경고, 변속기 오일 수위, 출력 제한 경고, 타이어 저압 경고 기준값,
+누적 주행거리(`getCurrentDistanceDriven`, km), 누적 전비와 충전량, 공조 전원과 팬 속도(차가 지원하는 좌석 영역으로),
+와이퍼 상태, 브레이크 페달 상태.
+
+SDK에 없는 값(패드 두께, 필터 상태)은 이렇게 추정해요.
+- 앱이 켜져 있는 동안 1 km당 공조·와이퍼 사용 시간과 제동 횟수를 재요. 기록이 적을 때는 평균값과 섞어 써요.
+- 교체 기록의 주행거리부터 지금까지 달린 거리에 곱해서, 앱을 켜지 않은 동안의 사용량도 계산에 넣어요.
+- 에어컨 필터는 300시간 또는 1년, 와이퍼는 100시간 또는 1년, 타이어 위치 교환은 1만 km 또는 1년,
+  브레이크 패드는 앞 7만 km·뒤 11만 km를 제동 습관(평균 1 km당 0.6회 대비)으로 나눈 거리가 기준이에요.
+- 실제 타이어 공기압은 공개 API로 읽을 수 없어서(privileged 권한), 타이어 항목은 위치 교환 주기를 보여 줘요.
 
 ## 6. 제출 전 확인
 
 - `app/build.gradle.kts`의 `applicationId`를 팀 고유 이름으로 바꾸기
 - 앱 이름(`res/values/strings.xml`)과 아이콘
-- 권한은 `AndroidManifest.xml`의 읽기 권한 7개와 음성 안내용 `pleos.car.permission.TTS_SERVICE`를 선언했어요.
+- 권한은 `AndroidManifest.xml`의 읽기 권한 5개(`CAR_SAFETY`, `CAR_DRIVE`, `CAR_ENERGY`, `CAR_CLIMATE`, `CAR_WINDOWS`,
+  모두 normal)와 음성 안내용 `pleos.car.permission.TTS_SERVICE`를 선언했어요. 이름은 Vehicle SDK의 `PleosPermission`과 같아요.
   Pleos TTS SDK가 `INTERNET` 권한을 자동으로 함께 넣어요. 승인되지 않은 권한을 선언하면 심사에서 떨어질 수 있으니 승인 목록과 비교해 보세요.
 - `distractionOptimized`(주행 중 표시) 선언이 공모전·심사 정책에 맞는지 확인하기
 - `versionCode` / `versionName`
@@ -76,4 +92,5 @@ SDK에 없는 값(패드 두께, 필터 상태)은 사용 시간과 제동 횟�
 
 ## 라이선스
 
-3D 렌더링에 three.js r128(MIT)을 사용해요. `app/src/main/assets/web/vendor/LICENSE-three.txt` 참고.
+3D 렌더링에 three.js r128(MIT), 진단서 QR 코드에 qrcode-generator 1.4.4(MIT)를 사용해요.
+`app/src/main/assets/web/vendor/LICENSE-three.txt`, `LICENSE-qrcode.txt` 참고.
