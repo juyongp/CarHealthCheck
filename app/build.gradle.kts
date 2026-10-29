@@ -71,6 +71,7 @@ android {
 dependencies {
     implementation(libs.vehicle.sdk)
     implementation(libs.tts.sdk)
+    implementation(libs.stt.sdk)
     implementation(libs.kotlin.reflect)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.ktx)

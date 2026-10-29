@@ -202,6 +202,28 @@ button{font:inherit;color:inherit}
 .log .del{appearance:none;border:1px solid var(--line-2);background:transparent;color:var(--muted);font-size:22px;line-height:1;padding:14px 18px;cursor:pointer;border-radius:0}
 .log .del.armed{border-color:var(--alert);color:var(--alert)}
 .sh-q{font-size:32px;line-height:1.5;margin:0}
+
+/* ask the car: listening state, what was heard, the answer, and questions to tap */
+.ask-mic{display:flex;align-items:center;gap:32px}
+.ask-dot{width:120px;height:120px;border-radius:50%;display:grid;place-items:center;background:var(--bg-3);border:2px solid var(--line-2);flex-shrink:0}
+.ask-dot svg{width:56px;height:56px;stroke:var(--fg);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ask-dot.on{background:var(--accent);border-color:var(--accent);animation:pulse 1.4s ease-in-out infinite}
+.ask-dot.on svg{stroke:var(--on-accent)}
+.ask-state{font-size:34px;font-weight:600;margin:0;line-height:1.35}
+.ask-heard{font-size:28px;color:var(--muted);margin:8px 0 0}
+.answer{font-size:34px;line-height:1.5;background:var(--bg-3);border:1px solid var(--line-2);border-left:6px solid var(--accent);padding:28px 32px;margin:0}
+.qchips{display:flex;flex-wrap:wrap;gap:14px}
+.qchip{appearance:none;font-size:26px;border:2px solid var(--line-2);background:var(--bg-3);color:var(--fg);padding:18px 26px;cursor:pointer;border-radius:0}
+
+/* charging habits on the battery card */
+.habit{display:grid;gap:16px;border-top:1px solid var(--line-2);padding-top:22px}
+.habit .sh-lab{margin:0}
+.habit .hs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.habit .hs div{display:grid;gap:4px}
+.habit .hs div + div{border-left:1px solid var(--line);padding-left:20px}
+.habit .k{font-size:21px;color:var(--faint)}
+.habit b{font-family:var(--mono);font-size:34px;font-weight:500;line-height:1.1}
+.habit p.tip{margin:0;font-size:27px;line-height:1.5}
 .basis{font-size:22px;color:var(--faint);margin:0}
 
 /* shop report: the QR stays black on white in both themes so phones can read it */
@@ -228,7 +250,11 @@ button{font:inherit;color:inherit}
 .dv-left .pill{align-self:flex-start}
 .dv-name{font-size:76px;font-weight:600;line-height:1.15;margin:28px 0 18px}
 .dv-line{font-size:42px;color:var(--fg);line-height:1.35;margin:0}
-.dv-left .btn{align-self:flex-start;margin-top:48px;font-size:34px;padding:34px 48px}
+.dv-btns{display:flex;flex-wrap:wrap;gap:20px;margin-top:48px}
+.dv-btns .btn{font-size:34px;padding:34px 48px;display:inline-flex;align-items:center;gap:16px}
+.mic{width:30px;height:30px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.dv-btns .mic{width:40px;height:40px}
+.chipbtn.ask{display:inline-flex;align-items:center;gap:12px}
 .voice{display:flex;align-items:flex-start;gap:20px;margin-top:32px;font-size:30px;color:var(--fg);background:var(--sel);border-radius:0;padding:22px 28px}
 .voice svg{width:40px;height:40px;flex-shrink:0;stroke:var(--accent);fill:none;stroke-width:2.2;stroke-linecap:round}
 .topcar{width:100%;height:auto}
@@ -303,6 +329,7 @@ button{font:inherit;color:inherit}
                 <button type="button" id="mode-exterior" data-mode="exterior" aria-pressed="false">외관</button>
                 <button type="button" id="mode-skeleton" data-mode="skeleton" aria-pressed="false">골격</button>
               </div>
+              <button type="button" class="chipbtn ask" id="askBtn"><svg class="mic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg>차에 물어보기</button>
               <button type="button" class="chipbtn" id="dataToggle" aria-pressed="false" hidden>예시 데이터로 보기</button>
               <button type="button" class="chipbtn" id="demoDrive" hidden>주행 화면 미리보기</button>
             </div>
@@ -344,6 +371,7 @@ button{font:inherit;color:inherit}
           </div>
           <div class="life" id="dLife"><div class="bar"><span id="dBar"></span></div><small id="dLifeTxt"></small></div>
           <div class="spark" id="dSpark"></div>
+          <div class="habit" id="dHabit" hidden><p class="sh-lab">충전 습관 · 최근 30일</p><div class="hs" id="dHabitStats"></div><p class="tip" id="dHabitTip"></p></div>
           <dl class="facts">
             <div><dt>원인</dt><dd id="dWhy"></dd></div>
             <div><dt>할 일</dt><dd id="dAct"></dd></div>
@@ -385,7 +413,10 @@ button{font:inherit;color:inherit}
           <span class="pill" id="dvPill"></span>
           <p class="dv-name" id="dvName"></p>
           <p class="dv-line" id="dvLine"></p>
-          <button type="button" class="btn" id="voiceBtn">음성으로 듣기</button>
+          <div class="dv-btns">
+            <button type="button" class="btn" id="voiceBtn">음성으로 듣기</button>
+            <button type="button" class="btn" id="dvAsk" aria-pressed="false"><svg class="mic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg>물어보기</button>
+          </div>
           <div class="voice" id="voice" hidden>
             <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
             <span id="voiceTxt"></span>
@@ -471,7 +502,8 @@ var DEMO_ITEMS = [
     drive:'구동 계통을 점검하세요', voice:'구동 계통에 출력 제한 경고가 들어왔어요. 안전한 곳에 정차해 주세요.' },
   { id:'hvBattery', name:'고전압 배터리', status:'ok', zone:'차체 바닥', val:'5.8', unit:'km/kWh', label:'누적 전비', ref:'3개월 전 5.9 km/kWh', short:'전비 안정적',
     trend:[5.92,5.95,5.9,5.88,5.91,5.86,5.85,5.87,5.83,5.84,5.82,5.8], refVal:5.5, refLab:'기준 5.5', span:'3개월 전',
-    why:'비슷한 날씨에서 전비가 거의 그대로예요. 배터리 이상으로 볼 만한 변화는 없어요.', act:'지금처럼 타면 돼요.', cost:'', data:['누적 전비','충전량'], view:[0.2,0.75,1], dist:5.4, halo:0.9, top:['floor'],
+    why:'비슷한 날씨에서 전비가 거의 그대로예요. 배터리 이상으로 볼 만한 변화는 없어요.', act:'충전 습관만 조금 바꾸면 배터리를 더 오래 쓸 수 있어요.', cost:'', data:['누적 전비','충전량'],
+    habit:{ stats:[['100% 가까이 충전','7/12회'],['10% 이하 방전','2회'],['평균 충전','24→97%']], tip:'최근 12번 충전 중 7번을 100% 가까이 채웠어요. 장거리 운행이 아니면 80~90%까지만 충전해도 충분하고, 배터리 노화를 늦출 수 있어요.' }, view:[0.2,0.75,1], dist:5.4, halo:0.9, top:['floor'],
     drive:'배터리 점검이 필요해요', voice:'고전압 배터리 효율이 떨어졌어요. 정차하면 자세히 알려 드릴게요.' },
   { id:'brakeR', name:'뒤 브레이크 패드', status:'ok', zone:'뒷바퀴 · 좌우', val:'63', unit:'%', label:'남은 수명 추정', ref:'교체 후 주행거리와 제동 습관으로 계산', life:0.63, short:'여유 있음',
     why:'앞바퀴보다 제동 부담이 적어서 천천히 닳고 있어요.', act:'다음 정기 점검 때 같이 보면 돼요.', cost:'8~12만 원 · 약 1시간', costR:[8,12], shop:true, due:610, rec:'교체', data:['브레이크 페달 상태','누적 주행거리','교체 기록'], view:[-0.8,0.32,1], dist:3.9, halo:0.44, top:['wRL','wRR'],
@@ -492,7 +524,7 @@ var DEMO_LOG = [
   { key:'demo-5', id:'brakeR', at:Date.now() - 1000 * DAY, how:'shop' }
 ];
 var DEMO_BASIS = '예시 · 하루 평균 42 km 주행 기준';
-var DATA_FIELDS = ['status','zone','val','unit','label','ref','life','short','why','act','cost','trend','refVal','refLab','span','done','live','raw','due','na'];
+var DATA_FIELDS = ['status','zone','val','unit','label','ref','life','short','why','act','cost','trend','refVal','refLab','span','done','live','raw','due','na','habit'];
 var ITEMS = DEMO_ITEMS.map(function(it){ return JSON.parse(JSON.stringify(it)); });
 var LABEL = { alert:'즉시 정비', warn:'점검 권장', ok:'양호' };
 var CSSVAR = { alert:'var(--alert)', warn:'var(--warn)', ok:'var(--ok)' };
@@ -624,6 +656,13 @@ function renderDetail(){
   if (hasLife){ $('dBar').style.width = Math.max(3, Math.round(it.life * 100)) + '%'; $('dLifeTxt').textContent = '남은 수명 ' + Math.round(it.life * 100) + '%'; }
   var sp = $('dSpark');
   if (it.trend && it.trend.length > 1){ sp.hidden = false; sp.innerHTML = sparkSVG(it); } else { sp.hidden = true; sp.innerHTML = ''; }
+  var hb = $('dHabit');
+  hb.hidden = !it.habit || !!it.na;
+  if (it.habit && !it.na){
+    var hs = $('dHabitStats'); hs.innerHTML = '';
+    it.habit.stats.forEach(function(st){ var d = document.createElement('div'); var k = document.createElement('span'); k.className = 'k'; k.textContent = st[0]; var b = document.createElement('b'); b.textContent = st[1]; d.appendChild(k); d.appendChild(b); hs.appendChild(d); });
+    $('dHabitTip').textContent = it.habit.tip;
+  }
   $('dWhy').textContent = it.why;
   $('dAct').textContent = it.act;
   var hasDue = typeof it.due === 'number' && !it.na;
@@ -853,15 +892,22 @@ function showBanner(){
   /* Issues stay on screen until the driver taps a button; only the all-clear and driving notices fade out. */
   if (!list.length || state.drive) bannerTimer = setTimeout(hideBanner, 9000);
 }
-function speak(it){
-  $('voiceTxt').textContent = '“' + it.voice + '”';
+var voiceTimer = null;
+/* The driving card's voice line; hideAfter 0 keeps it up (while listening). */
+function showVoice(text, hideAfter){
+  $('voiceTxt').textContent = text;
   $('voice').hidden = false;
-  if (Android && Android.speak) { try { Android.speak(it.voice); } catch (e) {} }
-  setTimeout(function(){ $('voice').hidden = true; }, 6000);
+  clearTimeout(voiceTimer);
+  if (hideAfter) voiceTimer = setTimeout(function(){ $('voice').hidden = true; }, hideAfter);
 }
+function say(text){ if (Android && Android.speak) { try { Android.speak(forSpeech(text)); } catch (e) {} } }
+function speak(it){ showVoice('“' + it.voice + '”', 6000); say(it.voice); }
 $('voiceBtn').addEventListener('click', function(){ var it = issues()[0]; if (it) speak(it); });
 
-function closeSheet(){ $('sheet').hidden = true; state.sheet = null; }
+function closeSheet(){
+  if (state.sheet === 'ask' && ask.on && Android && Android.stopListening) { try { Android.stopListening(); } catch (e) {} }
+  $('sheet').hidden = true; state.sheet = null;
+}
 $('shClose').addEventListener('click', closeSheet);
 /* Shop report: what to fix on the next visit, as a QR the driver scans with a phone and shows or sends to the shop. */
 function reportItems(){
@@ -1070,6 +1116,160 @@ function demoCarConfirm(it){
 $('bookBtn').addEventListener('click', function(){ openReport(); });
 $('diyBtn').addEventListener('click', function(){ openDiy(byId[state.selected]); });
 
+/* ================= ask the car =================
+   A spoken (Pleos STT) or tapped question is matched to a topic and answered from the same data the
+   screen shows, then read out (Pleos TTS). Answers stay short enough to hear while driving. */
+function batchim(word){ var c = String(word).charCodeAt(String(word).length - 1) - 0xAC00; return c >= 0 && c <= 11171 && c % 28 !== 0; }
+function josa(word, withFinal, without){ return word + (batchim(word) ? withFinal : without); }
+function forSpeech(t){ return String(t).replace(/(\d)~(\d)/g, '$1에서 $2').replace(/~/g, ' ').replace(/·/g, ',').replace(/→/g, '에서 '); }
+var QUESTIONS = ['차 상태 어때?', '다음 정비 언제야?', '장거리 가도 돼?', '정비비 얼마나 들어?', '배터리 충전 습관 어때?', '브레이크 패드 언제 바꿔?'];
+function jobName(it){ return it.name + ' ' + recVerb(it); }
+function itemAnswer(id){
+  return function(){
+    var it = byId[id], t;
+    if (it.na) return { text:josa(it.name, '은', '는') + ' 이 차에서 값을 받지 못해서 확인할 수 없어요.', id:id };
+    if (it.status === 'alert') t = josa(it.name, '이', '가') + ' 급해요. ' + it.drive + '.';
+    else if (it.status === 'warn' && (it.rec || it.diy || it.verb)){
+      var verb = recVerb(it);
+      t = josa(it.name, '은', '는') + ' ' + verb + '할 때가 다 됐어요. '
+        + (typeof it.due === 'number' && it.due > 0.5 && it.due < 730 ? dateText(Date.now() + it.due * DAY) + '쯤 ' + verb + '하세요.' : it.drive + '.');
+    }
+    else if (it.status === 'warn') t = josa(it.name, '은', '는') + ' 점검이 필요해요. ' + it.drive + '.';
+    else t = josa(it.name, '은', '는') + ' 괜찮아요.';
+    if (it.status === 'ok' && typeof it.due === 'number' && isFinite(it.due))
+      t += it.due >= 730 ? ' ' + recVerb(it) + '까지 2년 넘게 남았어요.' : ' 다음 ' + josa(recVerb(it), '은', '는') + ' ' + josa(relText(it.due), '이에요', '예요') + '.';
+    if (it.habit) t += ' ' + it.habit.tip;
+    return { text:t, id:id };
+  };
+}
+function statusAnswer(){
+  var list = issues();
+  if (!list.length){ var next = plan().upcoming[0]; return { text:'모든 항목이 정상이에요.' + (next ? ' 다음 정비는 ' + next.it.name + ', ' + josa(relText(next.due), '이에요', '예요') + '.' : ' 편하게 운전하세요.') }; }
+  var it = list[0];
+  return { text:'확인할 게 ' + list.length + '개 있어요. 가장 급한 건 ' + josa(it.name, '이에요', '예요') + '. ' + it.drive + '.', id:it.id };
+}
+function tripAnswer(){
+  var alerts = issues().filter(function(it){ return it.status === 'alert'; }), warns = issues().filter(function(it){ return it.status === 'warn'; });
+  if (alerts.length) return { text:'출발 전에 ' + alerts.map(function(it){ return it.name; }).join(', ') + '부터 점검하세요. ' + alerts[0].drive + '.', id:alerts[0].id };
+  if (warns.length) return { text:'다녀와도 괜찮아요. 다만 ' + josa(warns.map(function(it){ return it.name; }).join(', '), '은', '는') + ' 돌아와서 챙기세요.', id:warns[0].id };
+  return { text:'장거리 운행해도 괜찮아요. 출발 전에 타이어 공기압만 한 번 확인하세요.' };
+}
+function planAnswer(){
+  var p = plan(), v = p.visits[0];
+  if (v){
+    var jobs = josa(v.items.map(function(e){ return jobName(e.it); }).join(', '), '을', '를');
+    return { text:(v.day <= 0.5 ? '지금 정비소에 가야 해요. ' : dateText(Date.now() + v.day * DAY) + '쯤 정비소에 한 번 가면 돼요. ') + jobs + ' 한 번에 하세요. 예상 비용은 ' + josa(won(p.cost), '이에요', '예요') + '.', plan:true };
+  }
+  if (p.later.length) return { text:'90일 안에는 정비소에 갈 일이 없어요. 다음은 ' + p.later[0].it.name + ', ' + josa(relText(p.later[0].due), '이에요', '예요') + '.', plan:true };
+  return { text:'정해진 정비 일정이 없어요. 교체 기록을 남기면 다음 시기를 알려 드릴게요.', plan:true };
+}
+function costAnswer(){
+  var p = plan();
+  if (!p.soon.length) return { text:'앞으로 90일 동안 들 정비비는 없어요.', plan:true };
+  var top = p.soon.filter(function(e){ return e.it.costR; }).sort(function(a, b){ return b.it.costR[1] - a.it.costR[1]; })[0];
+  return { text:'앞으로 90일 예상 정비비는 ' + josa(won(p.cost), '이에요', '예요') + '.' + (top ? ' 가장 큰 건 ' + jobName(top.it) + ', ' + josa(won(top.it.costR), '이에요', '예요') + '.' : ''), plan:true };
+}
+var INTENTS = [
+  [/장거리|여행|멀리|고속도로|출발|떠나/, tripAnswer],
+  [/충전|배터리|전비|방전/, itemAnswer('hvBattery')],
+  [/브레이크액|브레이크오일/, itemAnswer('brakeFluid')],
+  [/뒤.?브레이크|뒷브레이크|후륜/, itemAnswer('brakeR')],
+  [/브레이크|패드|제동/, itemAnswer('brakeF')],
+  [/타이어|바퀴|공기압/, itemAnswer('tire')],
+  [/에어컨|필터|냄새/, itemAnswer('cabinFilter')],
+  [/와이퍼/, itemAnswer('wiper')],
+  [/워셔|와셔/, itemAnswer('washer')],
+  [/모터|출력|거북/, itemAnswer('motor')],
+  [/감속기|기어|미션|오일/, itemAnswer('reducer')],
+  [/얼마|비용|돈|가격|정비비/, costAnswer],
+  [/언제|일정|정비소|예약|계획|다음/, planAnswer],
+  /* "어때" alone is too broad ("오늘 날씨 어때"): only about the car, or with no other subject. */
+  [/상태|괜찮|문제|점검|건강|이상|고장|(차|자동차|우리차)어때|^어때/, statusAnswer]
+];
+function answer(q){
+  var n = String(q).replace(/[\s?.!,]/g, '');
+  for (var i = 0; i < INTENTS.length; i++) if (INTENTS[i][0].test(n)) return INTENTS[i][1]();
+  return { text:'잘 못 알아들었어요. “차 상태 어때?”, “다음 정비 언제야?”처럼 물어보세요.', miss:true };
+}
+
+var ask = { on:false, where:'sheet' };
+function canListen(){ return !!(Android && Android.listen); }
+function setAskState(title, heard, on){
+  ask.on = on;
+  var dv = $('dvAsk');
+  dv.lastChild.textContent = on && ask.where === 'drive' ? '그만 듣기' : '물어보기';
+  dv.setAttribute('aria-pressed', on && ask.where === 'drive' ? 'true' : 'false');
+  if (ask.where === 'drive'){
+    if (title || heard) showVoice(heard ? title + ' ' + heard : title, on ? 0 : 6000);
+    return;
+  }
+  if (state.sheet !== 'ask') return;
+  $('askState').textContent = title;
+  $('askHeard').textContent = heard;
+  $('askDot').classList.toggle('on', on);
+  $('askAgain').hidden = !canListen() || on;
+}
+function startListening(where){
+  ask.where = where;
+  if (!canListen()){ respond(QUESTIONS[0], where); return; }
+  if (where === 'sheet'){ $('answer').hidden = true; $('answerGo').hidden = true; }
+  setAskState('준비하고 있어요…', '', true);
+  try { Android.listen(); } catch (e) { setAskState('음성 인식을 쓸 수 없어요. 아래 질문을 눌러 보세요.', '', false); }
+}
+function respond(q, where){
+  var a = answer(q);
+  setAskState('', '', false);
+  if (where === 'drive'){
+    showVoice('“' + q + '” — ' + a.text, 10000);
+  } else if (state.sheet === 'ask'){
+    setAskState(a.miss ? '다시 물어봐 주세요' : '이렇게 들었어요', '“' + q + '”', false);
+    $('answer').textContent = a.text; $('answer').hidden = false;
+    var go = $('answerGo');
+    go.hidden = !(a.id || a.plan);
+    go.textContent = a.plan ? '정비 계획 보기' : (a.id ? byId[a.id].name + ' 자세히 보기' : '');
+    go.onclick = function(){ closeSheet(); if (a.plan) showPanel('plan'); else select(a.id, { focus:true }); };
+  }
+  say(a.text);
+}
+function openAsk(listenNow){
+  state.sheet = 'ask'; ask.where = 'sheet';
+  $('shTitle').textContent = '차에 물어보기';
+  $('shSub').textContent = canListen() ? '말로 묻거나, 아래 질문을 눌러 보세요' : '아래 질문을 눌러 보세요. 말로 묻기는 차에서 돼요';
+  var body = $('shBody'); body.innerHTML = '';
+  var row = document.createElement('div'); row.className = 'ask-mic';
+  row.innerHTML = '<span class="ask-dot" id="askDot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><div><p class="ask-state" id="askState"></p><p class="ask-heard" id="askHeard"></p></div>';
+  var ans = document.createElement('p'); ans.className = 'answer'; ans.id = 'answer'; ans.hidden = true;
+  var go = mkBtn('', '', function(){}); go.id = 'answerGo'; go.hidden = true; go.style.justifySelf = 'start';
+  var lab = document.createElement('p'); lab.className = 'sh-lab'; lab.textContent = '이렇게 물어보세요';
+  var chips = document.createElement('div'); chips.className = 'qchips';
+  QUESTIONS.forEach(function(q){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'qchip'; b.textContent = q;
+    b.addEventListener('click', function(){ if (ask.on && Android && Android.stopListening) { try { Android.stopListening(); } catch (e) {} } ask.where = 'sheet'; respond(q, 'sheet'); });
+    chips.appendChild(b);
+  });
+  body.appendChild(row); body.appendChild(ans); body.appendChild(go); body.appendChild(lab); body.appendChild(chips);
+  var foot = $('shFoot'); foot.innerHTML = '';
+  var again = mkBtn('다시 말하기', 'primary wide', function(){ startListening('sheet'); }); again.id = 'askAgain';
+  foot.appendChild(mkBtn('닫기', 'wide', closeSheet)); foot.appendChild(again);
+  $('sheet').hidden = false;
+  setAskState('무엇이 궁금하세요?', '', false);
+  if (listenNow && canListen()) startListening('sheet');
+}
+$('askBtn').addEventListener('click', function(){ openAsk(true); hideHint(); });
+$('dvAsk').addEventListener('click', function(){ if (ask.on && Android && Android.stopListening) { Android.stopListening(); return; } startListening('drive'); });
+/* Events from VoiceInput (Kotlin). */
+function onVoice(d){
+  switch (d.state){
+    case 'starting': setAskState('음성 인식을 준비하고 있어요…', '', true); break;
+    case 'listening': setAskState('듣고 있어요. 말씀하세요', '', true); break;
+    case 'partial': setAskState('듣고 있어요', '“' + d.text + '”', true); break;
+    case 'final': respond(d.text, ask.where); break;
+    case 'timeout': setAskState('잘 듣지 못했어요. 다시 말해 주세요', '', false); break;
+    case 'error': setAskState('지금은 음성 인식을 쓸 수 없어요. ' + (ask.where === 'drive' ? '정차하면 질문을 눌러 물어보세요.' : '아래 질문을 눌러 보세요.'), '', false); break;
+    default: setAskState(ask.where === 'drive' ? '' : '무엇이 궁금하세요?', '', false); if (ask.where === 'drive') $('voice').hidden = true;
+  }
+}
+
 /* ================= selection, modes ================= */
 var focusHook = null, selectHook = null, driveHook = null;
 function select(id, opts){
@@ -1148,14 +1348,15 @@ function sinceRecord(c, id){
   var r = (c.u.records || {})[id], fromRecord = !!r;
   if (!r) r = c.u.start || { at:c.now };
   var days = Math.max(0, (c.now - r.at) / DAY);
-  var dist = c.odo != null && typeof r.odo === 'number' ? Math.max(0, c.odo - r.odo) : days * c.kmPerDay;
-  return { fromRecord:fromRecord, days:days, km:dist,
+  var measured = c.odo != null && typeof r.odo === 'number';
+  var dist = measured ? Math.max(0, c.odo - r.odo) : days * c.kmPerDay;
+  return { fromRecord:fromRecord, days:days, km:dist, estimated:!measured,
     hvacH:Math.max(((c.u.hvacSeconds || 0) - (r.hvac || 0)) / 3600, dist * c.hvacPerKm),
     wiperH:Math.max(((c.u.wiperSeconds || 0) - (r.wiper || 0)) / 3600, dist * c.wiperPerKm) };
 }
 function sinceWords(s, verb){ return s.fromRecord ? verb + ' 후' : '기록을 시작한 뒤'; }
 /* "N km를 달렸어요", or a plain note while a fresh install has nothing to report yet. */
-function distWords(s, verb){ return !s.fromRecord && s.km < 1 ? '이제 막 기록을 시작했어요.' : sinceWords(s, verb) + ' ' + km(s.km) + ' km를 달렸어요.'; }
+function distWords(s, verb){ return !s.fromRecord && s.km < 1 ? '이제 막 기록을 시작했어요.' : sinceWords(s, verb) + (s.estimated ? ' 약 ' : ' ') + km(s.km) + ' km를 달렸어요.'; }
 function noRecordHint(s, verb){ return s.fromRecord ? '' : ' 마지막 ' + verb + ' 시기를 기록하면 더 정확해져요.'; }
 /* Days until a usage limit, given usage per day; the calendar limit applies as well. */
 function daysTo(left, perDay, calendarLeft){ var d = perDay > 0 ? left / perDay : Infinity; return Math.min(d, calendarLeft); }
@@ -1229,6 +1430,27 @@ function batteryTrend(v, hist){
   } else { f.short = '전비 안정적'; }
   return f;
 }
+/* Charging habits over the last 30 days. Rises under 5 points are left out: regenerative braking
+   downhill can add a point or two without a charger. */
+function chargeHabit(u){
+  var since = (u.now || Date.now()) - 30 * DAY;
+  var ss = (u.charges || []).filter(function(x){ return x.at >= since && x.to - x.from >= 5; });
+  var lows = (u.lowSoc || []).filter(function(x){ return x.at >= since; });
+  var full = ss.filter(function(x){ return x.to >= 95; }).length;
+  var from = 0, to = 0; ss.forEach(function(x){ from += x.from; to += x.to; });
+  var avg = ss.length ? Math.round(from / ss.length) + '→' + Math.round(to / ss.length) + '%' : '—';
+  var h = { stats:[['100% 가까이 충전', full + '/' + ss.length + '회'], ['10% 이하 방전', lows.length + '회'], ['평균 충전', avg]], advice:true, sessions:ss.length };
+  if (ss.length >= 3 && full / ss.length >= 0.5)
+    h.tip = '최근 ' + ss.length + '번 충전 중 ' + full + '번을 100% 가까이 채웠어요. 장거리 운행이 아니면 80~90%까지만 충전해도 충분하고, 배터리 노화를 늦출 수 있어요.';
+  else if (lows.length >= 2)
+    h.tip = '최근 30일 동안 10% 아래까지 쓴 적이 ' + lows.length + '번 있어요. 20% 안팎에서 충전하면 배터리에 무리가 덜 가요.';
+  else {
+    h.advice = false;
+    h.tip = ss.length ? '충전 습관이 좋아요. 보통 ' + Math.round(from / ss.length) + '%에서 ' + Math.round(to / ss.length) + '%까지 충전해요.'
+      : '충전 기록을 모으는 중이에요. 충전하기 전과 후에 앱을 한 번씩 열면 기록돼요.';
+  }
+  return h;
+}
 function applyLive(d){
   var v = d.values || {}, u = d.usage || {}, n = 0;
   var c = liveContext(d);
@@ -1253,8 +1475,15 @@ function applyLive(d){
   if ('powerDown' in v){ n++; var pd = v.powerDown === true || abnormal(v.powerDown);
     liveSet(byId.motor, pd ? { status:'alert', val:'경고', ref:'출력 제한 중', short:'출력 제한', why:'차에서 구동 계통 출력 제한 경고를 보냈어요. 모터·인버터나 배터리 온도 이상일 수 있어요.', act:'안전한 곳에 정차하고 서비스센터에 점검을 맡기세요.', raw:String(v.powerDown) }
                            : { status:'ok', val:'정상', ref:'경고 없음', short:'경고 없음', why:'모터와 인버터에서 출력 제한 경고가 없어요.', act:'따로 할 일은 없어요.', raw:String(v.powerDown) }); }
+  var hasSoc = typeof v.soc === 'number';
   if (typeof v.evEfficiency === 'number'){ n++;
     liveSet(byId.hvBattery, batteryTrend(v.evEfficiency, (u.efficiencyHistory || []).filter(function(x){ return typeof x === 'number'; }))); }
+  else if (hasSoc){ n++;
+    liveSet(byId.hvBattery, { status:'ok', val:String(Math.round(v.soc)), unit:'%', label:'지금 충전량', ref:'전비 값은 이 차에서 받지 못했어요', trend:null, life:null, short:'충전 습관 기록 중', why:'차가 보낸 충전량으로 충전 습관을 기록해요.', act:'아래 충전 습관을 참고하세요.', raw:String(v.soc) }); }
+  byId.hvBattery.habit = hasSoc && byId.hvBattery.live ? chargeHabit(u) : null;
+  var habit = byId.hvBattery.habit;
+  if (habit && habit.advice) byId.hvBattery.short = '충전 습관 팁 있어요';
+  else if (habit && habit.sessions) byId.hvBattery.short = '충전 습관 좋아요';
   /* Wear items need either the odometer or their own usage signal. */
   var hasOdo = c.odo != null;
   if (hasOdo || typeof u.brakePresses === 'number'){ n += 2; applyModel(byId.brakeF, c); applyModel(byId.brakeR, c); }
@@ -1318,7 +1547,8 @@ window.PleosBridge = {
   onTheme: function(t){ document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light'; },
   onVehicleData: function(d){ try { if (typeof d === 'string') d = JSON.parse(d); if (state.dataMode === 'demo' && d.connected && !state.connected){ state.dataMode = 'live'; } applyVehicleData(d); } catch (e) { if (Android && Android.log) Android.log('vehicle data error: ' + e); } },
   onDrivingState: function(on){ state.uxConnected = true; setDrive(!!on); refreshLiveBadge(liveCount); },
-  onUxUnavailable: function(){ state.uxConnected = false; refreshLiveBadge(liveCount); }
+  onUxUnavailable: function(){ state.uxConnected = false; refreshLiveBadge(liveCount); },
+  onVoice: function(d){ try { onVoice(typeof d === 'string' ? JSON.parse(d) : d); } catch (e) { if (Android && Android.log) Android.log('voice error: ' + e); } }
 };
 
 renderAll();

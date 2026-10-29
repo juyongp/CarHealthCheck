@@ -22,6 +22,10 @@
     <!-- 음성 안내: Pleos TTS SDK가 차량 음성 엔진(CaaS)을 쓰려면 꼭 필요해요(normal 권한, 설치 시 자동 허용).
          제출 전에 공모전 승인 권한 목록에 있는지 확인하세요. TTS SDK는 INTERNET 권한도 함께 넣어요. -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+
+    <!-- 음성으로 묻기: Pleos STT SDK가 차량 음성 인식 엔진(CaaS)과 마이크를 쓰려면 필요해요(normal 권한).
+         앱이 직접 녹음하지 않아서 RECORD_AUDIO는 필요 없어요. 제출 전에 승인 권한 목록에 있는지 확인하세요. -->
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
     <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
 

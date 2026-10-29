@@ -46,7 +46,7 @@ import kotlin.reflect.full.declaredMemberFunctions
  *           hasPowerDownWarningIndicator (drive power limited)                        CAR_SAFETY
  *  Tire     getLowTirePressure (the car's low-pressure threshold in kPa, not a warning) CAR_SAFETY
  *  Odometer getCurrentDistanceDriven (km), getTripCumulativeDrivingDistance (m) as fallback  CAR_DRIVE
- *  EvBattery getCumulativeEvEfficiency, getEvBatteryStateOfCharge                     CAR_ENERGY
+ *  EvBattery getCumulativeEvEfficiency, getEvBatteryStateOfCharge (charging habits)  CAR_ENERGY
  *  HVAC     getHvacPowerState, getHvacFanSpeed (air-conditioning hours for the cabin filter),
  *           on the first area the car reports in checkHvac*Capabilities              CAR_CLIMATE
  *  Wiper    getCurrentWiperState (wiper hours)                                       CAR_WINDOWS
@@ -169,6 +169,7 @@ class VehicleReader(
         if (isActive(values["hvacPower"]) || isActive(values["fanSpeed"])) usage.addHvacSeconds(seconds)
         if (isActive(values["wiper"])) usage.addWiperSeconds(seconds)
         (values["evEfficiency"] as? Number)?.let { usage.recordEfficiency(it.toDouble()) }
+        (values["soc"] as? Number)?.let { usage.recordSoc(it.toDouble()) }
         odometerKm()?.let { km ->
             val step = lastOdometerKm?.let { km - it }
             // Larger jumps are a reset or a long gap, not distance the app watched.

@@ -8,12 +8,14 @@ vehicleSdk = "2.3.2"
 # Pleos 음성 안내 SDK. 차량의 CaaS 음성 엔진 4.1.29 이상이 필요해요.
 ttsSdk = "3.3.1"
 kotlinReflect = "2.0.0"
+sttSdk = "3.3.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
 vehicle-sdk = { module = "ai.pleos.playground:Vehicle", version.ref = "vehicleSdk" }
 tts-sdk = { module = "ai.pleos.playground:TextToSpeech", version.ref = "ttsSdk" }
+stt-sdk = { module = "ai.pleos.playground:SpeechToText", version.ref = "sttSdk" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlinReflect" }
 
 [plugins]

@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var usage: UsageStore
     private var vehicleReader: VehicleReader? = null
     private var drivingMonitor: DrivingStateMonitor? = null
+    private var voiceInput: VoiceInput? = null
 
     // Voice guidance: the car's own engine through the Pleos TTS SDK, Android TextToSpeech if that fails.
     private var pleosTts: ai.pleos.playground.tts.TextToSpeech? = null
@@ -75,6 +76,9 @@ class MainActivity : ComponentActivity() {
         vehicleReader = VehicleReader(this, usage) { json ->
             callPage("onVehicleData", JSONObject.quote(json))
         }
+        voiceInput = VoiceInput(this) { state, text ->
+            callPage("onVoice", JSONObject.quote(JSONObject().put("state", state).put("text", text).toString()))
+        }
         drivingMonitor = DrivingStateMonitor(
             this,
             onChange = { requiresOptimization -> callPage("onDrivingState", requiresOptimization.toString()) },
@@ -92,6 +96,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         vehicleReader?.pause()
+        voiceInput?.stop()
         webView.onPause()
         super.onPause()
     }
@@ -109,6 +114,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         vehicleReader?.release()
         drivingMonitor?.stop()
+        voiceInput?.release()
         pleosTts?.release()
         tts?.shutdown()
         webView.removeJavascriptInterface("AndroidBridge")
@@ -224,6 +230,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Stops an answer being read out, so the microphone doesn't hear the car's own voice. */
+    private fun stopSpeaking() {
+        runCatching { pleosTts?.stop() }
+        tts?.stop()
+    }
+
     private fun say(text: String) {
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "car-health")
     }
@@ -261,6 +273,20 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun speak(text: String) {
             main.post { this@MainActivity.speak(text) }
+        }
+
+        /** Starts listening for one spoken question; results arrive as PleosBridge.onVoice. */
+        @JavascriptInterface
+        fun listen() {
+            main.post {
+                stopSpeaking()
+                voiceInput?.listen()
+            }
+        }
+
+        @JavascriptInterface
+        fun stopListening() {
+            main.post { voiceInput?.stop() }
         }
 
         /** Read synchronously by the page's first script so it paints in the right colors. */

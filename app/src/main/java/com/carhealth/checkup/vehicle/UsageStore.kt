@@ -11,7 +11,8 @@ import java.util.Locale
 /**
  * Usage the app accumulates itself, because the SDK has no direct value for it:
  * air-conditioning hours (cabin filter), wiper hours, brake presses (pad wear estimate),
- * the distance driven while the app was counting, and daily odometer and efficiency history.
+ * the distance driven while the app was counting, daily odometer and efficiency history,
+ * charging sessions and deep discharges (battery habits), and the maintenance log.
  *
  * Counters only grow. A replacement stores a snapshot of them with the odometer, so the page
  * can tell how much was used since, and scale it up by distance for the time the app was closed.
@@ -48,6 +49,42 @@ class UsageStore(context: Context) {
         val history = dailyUpsert(KEY_ODO_HISTORY, "km", km)
         editor.putString(KEY_ODO_HISTORY, history.toString())
         editor.apply()
+    }
+
+    /**
+     * Charging habits from the state of charge (%). A rise of a point or more since the last reference
+     * value is charging (also when it happened while the app was closed: the next reading is just higher);
+     * rises within a few hours of each other are one session. Falling below [LOW_SOC] counts as a deep discharge.
+     */
+    @Synchronized
+    fun recordSoc(soc: Double) {
+        if (soc.isNaN() || soc.isInfinite() || soc < 0.0 || soc > 100.0) return
+        val now = System.currentTimeMillis()
+        val reference = prefs.getString(KEY_SOC_REF, null)?.toDoubleOrNull()
+        val editor = prefs.edit()
+        if (reference == null) {
+            editor.putString(KEY_SOC_REF, soc.toString()).apply()
+            return
+        }
+        val delta = soc - reference
+        if (delta > -1.0 && delta < 1.0) return
+        val sessions = JSONArray(prefs.getString(KEY_CHARGES, null) ?: "[]")
+        if (delta >= 1.0) {
+            val last = if (sessions.length() > 0) sessions.optJSONObject(sessions.length() - 1) else null
+            if (last != null && now - last.optLong("upd") < SESSION_GAP_MS && last.optDouble("to") <= reference + 0.5) {
+                last.put("to", soc).put("upd", now)
+            } else {
+                sessions.put(JSONObject().put("from", reference).put("to", soc).put("at", now).put("upd", now))
+            }
+            while (sessions.length() > MAX_CHARGES) sessions.remove(0)
+            editor.putString(KEY_CHARGES, sessions.toString())
+        } else if (soc < LOW_SOC && reference >= LOW_SOC) {
+            val lows = JSONArray(prefs.getString(KEY_LOWS, null) ?: "[]")
+            lows.put(JSONObject().put("at", now).put("soc", soc))
+            while (lows.length() > MAX_CHARGES) lows.remove(0)
+            editor.putString(KEY_LOWS, lows.toString())
+        }
+        editor.putString(KEY_SOC_REF, soc.toString()).apply()
     }
 
     @Synchronized
@@ -149,6 +186,8 @@ class UsageStore(context: Context) {
         }
         json.put("records", records)
         json.put("log", readLog())
+        json.put("charges", JSONArray(prefs.getString(KEY_CHARGES, null) ?: "[]"))
+        json.put("lowSoc", JSONArray(prefs.getString(KEY_LOWS, null) ?: "[]"))
         json.put("now", System.currentTimeMillis())
         return json
     }
@@ -231,6 +270,12 @@ class UsageStore(context: Context) {
         private const val KEY_RECORD_PREFIX = "record_"
         private const val KEY_LOG = "maintenance_log"
         private const val KEY_WARNING_PREFIX = "low_warning_"
+        private const val KEY_SOC_REF = "soc_reference"
+        private const val KEY_CHARGES = "charge_sessions"
+        private const val KEY_LOWS = "deep_discharges"
+        private const val LOW_SOC = 10.0
+        private const val SESSION_GAP_MS = 3 * 3_600_000L
+        private const val MAX_CHARGES = 80
         private const val OLD_REPLACED_PREFIX = "replaced_"
         private const val MAX_DAYS = 120
         private const val MAX_LOG = 60
