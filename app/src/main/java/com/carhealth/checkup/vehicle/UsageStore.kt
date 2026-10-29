@@ -1,6 +1,7 @@
 package com.carhealth.checkup.vehicle
 
 import android.content.Context
+import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -56,22 +57,69 @@ class UsageStore(context: Context) {
     }
 
     /**
-     * Called when the driver records a replacement in the app (S6 정비 기록).
+     * Adds a replacement to the maintenance log (S6 정비 기록) and returns its key.
      * [daysAgo] is 0 for "just now"; [odometerKm] is the page's estimate for that day, or negative when unknown.
+     * [how] is "diy" or "shop" when the driver entered it, "car" when the car's own warning confirmed it.
      */
     @Synchronized
-    fun recordReplacement(itemId: String, daysAgo: Int, odometerKm: Double, how: String) {
-        val at = System.currentTimeMillis() - daysAgo.coerceIn(0, 3650) * DAY_MS
-        val record = snapshot(at)
-        if (!odometerKm.isNaN() && !odometerKm.isInfinite() && odometerKm >= 0.0) record.put("odo", odometerKm)
-        val log = JSONArray(prefs.getString(KEY_LOG, null) ?: "[]")
-        log.put(JSONObject().put("id", itemId).put("at", at).put("how", how))
+    fun recordReplacement(itemId: String, daysAgo: Int, odometerKm: Double, how: String): Long {
+        val now = System.currentTimeMillis()
+        val log = readLog()
+        // Keys order the entries and identify one for undo or deletion, so they must be unique.
+        var key = now
+        while ((0 until log.length()).any { log.optJSONObject(it)?.optLong("key") == key }) key++
+        val entry = snapshot(now - daysAgo.coerceIn(0, 3650) * DAY_MS)
+            .put("key", key).put("id", itemId).put("how", how)
+        if (!odometerKm.isNaN() && !odometerKm.isInfinite() && odometerKm >= 0.0) entry.put("odo", odometerKm)
+        log.put(entry)
         while (log.length() > MAX_LOG) log.remove(0)
-        prefs.edit()
-            .putString(KEY_RECORD_PREFIX + itemId, record.toString())
-            .putString(KEY_LOG, log.toString())
-            .apply()
+        val editor = prefs.edit().putString(KEY_LOG, log.toString())
+        applyCurrentRecord(editor, log, itemId)
+        editor.apply()
+        return key
     }
+
+    /** Removes a log entry (undo, or a record entered by mistake); the item falls back to its previous record. */
+    @Synchronized
+    fun deleteRecord(key: Long) {
+        val log = readLog()
+        val index = (0 until log.length()).firstOrNull { log.optJSONObject(it)?.optLong("key") == key } ?: return
+        val itemId = log.optJSONObject(index)?.optString("id").orEmpty()
+        log.remove(index)
+        val editor = prefs.edit().putString(KEY_LOG, log.toString())
+        if (itemId.isNotEmpty()) applyCurrentRecord(editor, log, itemId)
+        editor.apply()
+    }
+
+    /**
+     * Remembers the car's last low-level warning for [itemId] and returns true when a warning
+     * that was on has gone off, i.e. the fluid was topped up. Kept across restarts, so a refill
+     * made while the app was closed is caught the next time it reads the car.
+     */
+    @Synchronized
+    fun warningCleared(itemId: String, low: Boolean): Boolean {
+        val key = KEY_WARNING_PREFIX + itemId
+        val wasLow = prefs.getBoolean(key, false)
+        if (!prefs.contains(key) || wasLow != low) prefs.edit().putBoolean(key, low).apply()
+        return wasLow && !low
+    }
+
+    /** The item's current record is its latest entry by date, so an older entry added later doesn't replace it. */
+    private fun applyCurrentRecord(editor: SharedPreferences.Editor, log: JSONArray, itemId: String) {
+        val latest = (0 until log.length()).mapNotNull { log.optJSONObject(it) }
+            .filter { it.optString("id") == itemId }
+            .maxByOrNull { it.optLong("at") }
+        if (latest == null) {
+            editor.remove(KEY_RECORD_PREFIX + itemId)
+            return
+        }
+        val record = JSONObject().put("at", latest.optLong("at"))
+            .put("hvac", latest.optLong("hvac")).put("wiper", latest.optLong("wiper")).put("brake", latest.optLong("brake"))
+        if (latest.has("odo")) record.put("odo", latest.optDouble("odo"))
+        editor.putString(KEY_RECORD_PREFIX + itemId, record.toString())
+    }
+
+    private fun readLog(): JSONArray = JSONArray(prefs.getString(KEY_LOG, null) ?: "[]")
 
     @Synchronized
     fun toJson(includeHvac: Boolean, includeWiper: Boolean, includeBrake: Boolean): JSONObject {
@@ -100,7 +148,7 @@ class UsageStore(context: Context) {
             runCatching { records.put(key.removePrefix(KEY_RECORD_PREFIX), JSONObject(value)) }
         }
         json.put("records", records)
-        json.put("log", JSONArray(prefs.getString(KEY_LOG, null) ?: "[]"))
+        json.put("log", readLog())
         json.put("now", System.currentTimeMillis())
         return json
     }
@@ -126,24 +174,43 @@ class UsageStore(context: Context) {
     }
 
     /**
-     * Version 1 reset the counters on each replacement and kept only a "replaced_<id>" time.
-     * A zero snapshot at that time reads the same way under the new scheme.
+     * Version 1 reset the counters on each replacement and kept only a "replaced_<id>" time;
+     * a zero snapshot at that time reads the same way now. Version 1.1 log entries had no key
+     * or counters; they get a key and the counters of the item's record from the same day.
      */
     private fun migrate() {
         val editor = prefs.edit()
         if (!prefs.contains(KEY_START_AT)) editor.putLong(KEY_START_AT, System.currentTimeMillis())
-        val old = prefs.all.filterKeys { it.startsWith(OLD_REPLACED_PREFIX) }
-        if (old.isNotEmpty()) {
-            val log = JSONArray(prefs.getString(KEY_LOG, null) ?: "[]")
-            for ((key, value) in old.entries.sortedBy { (it.value as? Long) ?: 0L }) {
-                val at = value as? Long ?: continue
-                val itemId = key.removePrefix(OLD_REPLACED_PREFIX)
-                val record = JSONObject().put("at", at).put("hvac", 0L).put("wiper", 0L).put("brake", 0L)
-                editor.putString(KEY_RECORD_PREFIX + itemId, record.toString())
-                log.put(JSONObject().put("id", itemId).put("at", at).put("how", "diy"))
-                editor.remove(key)
+        val log = readLog()
+        var changed = false
+        for ((key, value) in prefs.all.filterKeys { it.startsWith(OLD_REPLACED_PREFIX) }) {
+            val at = value as? Long ?: continue
+            log.put(JSONObject().put("id", key.removePrefix(OLD_REPLACED_PREFIX)).put("at", at).put("how", "diy")
+                .put("hvac", 0L).put("wiper", 0L).put("brake", 0L))
+            editor.remove(key)
+            changed = true
+        }
+        val used = HashSet<Long>()
+        for (i in 0 until log.length()) {
+            val entry = log.optJSONObject(i) ?: continue
+            if (entry.has("key")) { used.add(entry.optLong("key")); continue }
+            var key = entry.optLong("at")
+            while (!used.add(key)) key++
+            entry.put("key", key)
+            if (!entry.has("hvac")) {
+                val record = prefs.getString(KEY_RECORD_PREFIX + entry.optString("id"), null)
+                    ?.let { runCatching { JSONObject(it) }.getOrNull() }
+                    ?.takeIf { it.optLong("at") == entry.optLong("at") }
+                entry.put("hvac", record?.optLong("hvac") ?: 0L).put("wiper", record?.optLong("wiper") ?: 0L)
+                    .put("brake", record?.optLong("brake") ?: 0L)
+                if (record?.has("odo") == true) entry.put("odo", record.optDouble("odo"))
             }
+            changed = true
+        }
+        if (changed) {
             editor.putString(KEY_LOG, log.toString())
+            val ids = (0 until log.length()).mapNotNull { log.optJSONObject(it)?.optString("id") }.toSet()
+            ids.forEach { applyCurrentRecord(editor, log, it) }
         }
         editor.apply()
     }
@@ -163,6 +230,7 @@ class UsageStore(context: Context) {
         private const val KEY_START_ODO = "tracking_start_odometer"
         private const val KEY_RECORD_PREFIX = "record_"
         private const val KEY_LOG = "maintenance_log"
+        private const val KEY_WARNING_PREFIX = "low_warning_"
         private const val OLD_REPLACED_PREFIX = "replaced_"
         private const val MAX_DAYS = 120
         private const val MAX_LOG = 60

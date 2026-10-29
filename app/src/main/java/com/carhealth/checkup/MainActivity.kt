@@ -240,13 +240,22 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** [odometerKm] is the page's estimate for that day, negative when unknown; [how] is "diy", "shop" or "past". */
+        /**
+         * [odometerKm] is the page's estimate for that day, negative when unknown; [how] is "diy" or "shop".
+         * Returns the entry's key so the page can offer undo. UsageStore is synchronized, so this runs here.
+         */
         @JavascriptInterface
-        fun recordReplacement(itemId: String, daysAgo: Int, odometerKm: Double, how: String) {
-            main.post {
-                usage.recordReplacement(itemId, daysAgo, odometerKm, how)
-                vehicleReader?.publishNow()
-            }
+        fun recordReplacement(itemId: String, daysAgo: Int, odometerKm: Double, how: String): String {
+            val key = usage.recordReplacement(itemId, daysAgo, odometerKm, how)
+            vehicleReader?.publishNow()
+            return key.toString()
+        }
+
+        /** Undo, or deleting a record entered by mistake. */
+        @JavascriptInterface
+        fun deleteRecord(key: String) {
+            key.toLongOrNull()?.let { usage.deleteRecord(it) }
+            vehicleReader?.publishNow()
         }
 
         @JavascriptInterface

@@ -176,6 +176,26 @@ class VehicleReader(
             lastOdometerKm = km
             usage.recordOdometer(km)
         }
+
+        // A low-level warning that goes off means the fluid was topped up: the car confirms it, no tap needed.
+        confirmRefill("washer", values["washerLow"] as? Boolean)
+        confirmRefill("brakeFluid", fluidLow(values["brakeFluid"]))
+    }
+
+    /** OilLevelState: LOW or CRITICALLY_LOW is low, NORMAL or HIGH is fine; ERROR tells nothing. */
+    private fun fluidLow(value: Any?): Boolean? {
+        val name = (value as? Enum<*>)?.name ?: value?.toString() ?: return null
+        return when {
+            name.contains("LOW") -> true
+            name == "NORMAL" || name == "HIGH" -> false
+            else -> null
+        }
+    }
+
+    private fun confirmRefill(itemId: String, low: Boolean?) {
+        if (low == null || !usage.warningCleared(itemId, low)) return
+        usage.recordReplacement(itemId, 0, odometerKm() ?: -1.0, "car")
+        Log.i(TAG, "$itemId refill confirmed by the car")
     }
 
     private fun odometerKm(): Double? {
